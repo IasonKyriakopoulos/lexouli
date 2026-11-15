@@ -1,0 +1,1896 @@
+<!DOCTYPE html>
+<html lang="el" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ΛΕΞΟΥΛΙ</title>
+  <!-- Catchy Wordle-Tile "Λ" SVG Tab Favicon & Apple Touch Icon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23538d4e'/%3E%3Cstop offset='100%25' stop-color='%233b6e38'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='4' y='4' width='56' height='56' rx='14' fill='url(%23g)' stroke='%236ee7b7' stroke-width='2.5' stroke-opacity='0.45'/%3E%3Ccircle cx='50' cy='14' r='4.5' fill='%23facc15'/%3E%3Cpath d='M32 16 L18 48 H26.5 L32 33.5 L37.5 48 H46 Z' fill='%23ffffff'/%3E%3C/svg%3E" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23538d4e'/%3E%3Ccircle cx='50' cy='14' r='4.5' fill='%23facc15'/%3E%3Cpath d='M32 16 L18 48 H26.5 L32 33.5 L37.5 48 H46 Z' fill='%23ffffff'/%3E%3C/svg%3E" />
+  <!-- Tailwind CSS CDN for responsive utility styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter & Comfortaa for clean Greek typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #121213;
+      --bg-secondary: #1a1a1b;
+      --border-empty: #3a3a3c;
+      --border-active: #565758;
+      --color-correct: #538d4e;
+      --color-present: #b59f3b;
+      --color-absent: #3a3a3c;
+      --key-bg: #818384;
+      --text-main: #f8fafc;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100dvh;
+      max-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overscroll-behavior: none;
+      touch-action: manipulation;
+    }
+
+    /* Safe-area padding for iPhone notch / home indicator */
+    .safe-bottom {
+      padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
+    }
+
+    /* Tile Styling & Animations */
+    .tile {
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: 800;
+      text-transform: uppercase;
+      border: 2px solid var(--border-empty);
+      background-color: transparent;
+      color: #ffffff;
+      border-radius: 6px;
+      transition: border-color 0.12s ease, transform 0.1s ease;
+      perspective: 1000px;
+    }
+
+    .tile.filled {
+      border-color: var(--border-active);
+      animation: popIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 0 12px rgba(255, 255, 255, 0.06);
+    }
+
+    .tile.active-cursor {
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.28), 0 0 14px rgba(96, 165, 250, 0.2);
+      transform: translateY(-1px);
+    }
+
+    .tile.hint-locked {
+      border-color: #38bdf8;
+      box-shadow: inset 0 0 8px rgba(56, 189, 248, 0.35);
+    }
+
+    .tile.correct {
+      background-color: var(--color-correct) !important;
+      border-color: var(--color-correct) !important;
+      color: #ffffff;
+    }
+
+    .tile.present {
+      background-color: var(--color-present) !important;
+      border-color: var(--color-present) !important;
+      color: #ffffff;
+    }
+
+    .tile.absent {
+      background-color: var(--color-absent) !important;
+      border-color: var(--color-absent) !important;
+      color: #d1d5db;
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.78); opacity: 0.6; }
+      60% { transform: scale(1.13); opacity: 1; }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes flipTile {
+      0% { transform: rotateX(0deg) scale(1); }
+      45% { transform: rotateX(90deg) scale(0.95); }
+      55% { transform: rotateX(90deg) scale(1.04); }
+      100% { transform: rotateX(0deg) scale(1); }
+    }
+
+    .tile.flip {
+      animation: flipTile 0.56s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    @keyframes bounceWin {
+      0%, 20% { transform: translateY(0) scale(1); }
+      40% { transform: translateY(-20px) scale(1.08); box-shadow: 0 12px 24px rgba(83, 141, 78, 0.45); }
+      55% { transform: translateY(3px) scale(0.97); }
+      70% { transform: translateY(-10px) scale(1.03); }
+      85% { transform: translateY(1px) scale(0.99); }
+      100% { transform: translateY(0) scale(1); box-shadow: 0 0 14px rgba(83, 141, 78, 0.35); }
+    }
+
+    .tile.win-bounce {
+      animation: bounceWin 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    @keyframes lossSink {
+      0% { transform: translateY(0) scale(1); filter: saturate(1); }
+      40% { transform: translateY(6px) rotate(-1.5deg) scale(0.96); }
+      75% { transform: translateY(-2px) rotate(1deg) scale(0.98); }
+      100% { transform: translateY(0) rotate(0) scale(0.97); opacity: 0.85; filter: saturate(0.75); }
+    }
+
+    .tile.loss-wave {
+      animation: lossSink 0.65s ease-out forwards;
+    }
+
+    @keyframes rowPulseWave {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+      100% { transform: scale(1); }
+    }
+
+    .row-submit-wave {
+      animation: rowPulseWave 0.38s ease-out;
+    }
+
+    @keyframes rowShake {
+      10%, 90% { transform: translateX(-3px); }
+      20%, 80% { transform: translateX(5px); }
+      30%, 50%, 70% { transform: translateX(-7px); }
+      40%, 60% { transform: translateX(7px); }
+    }
+
+    .row-shake {
+      animation: rowShake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+    }
+
+    /* Keyboard Styling */
+    .kbd-key {
+      background-color: var(--key-bg);
+      color: #ffffff;
+      border-radius: 6px;
+      font-weight: 700;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      transition: background-color 0.2s ease, transform 0.08s ease;
+      box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kbd-key:active, .kbd-key.key-pressed {
+      transform: translateY(2px) scale(0.94);
+      box-shadow: none;
+      filter: brightness(1.18);
+    }
+
+    /* Key press ripple ring */
+    @keyframes keyRipple {
+      0% { transform: scale(0.3); opacity: 0.55; }
+      100% { transform: scale(2.4); opacity: 0; }
+    }
+
+    .key-ripple-effect {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.35);
+      pointer-events: none;
+      animation: keyRipple 0.42s ease-out forwards;
+    }
+
+    .kbd-key.correct {
+      background-color: var(--color-correct) !important;
+    }
+
+    .kbd-key.present {
+      background-color: var(--color-present) !important;
+    }
+
+    .kbd-key.absent {
+      background-color: #272729 !important;
+      color: #71717a;
+    }
+
+    /* Custom Scrollbar for Modals */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #18181b;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #3f3f46;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body class="selection:bg-emerald-600 selection:text-white">
+
+  <!-- Ambient FX Canvas for Win/Loss/Typing Particles -->
+  <canvas id="fxCanvas" class="fixed inset-0 pointer-events-none z-40"></canvas>
+
+  <!-- Top Header Navigation -->
+  <header class="w-full border-b border-zinc-800 bg-zinc-900/80 backdrop-blur-md sticky top-0 z-30 shrink-0">
+    <div class="max-w-4xl mx-auto px-3 sm:px-4 py-2 flex items-center justify-between gap-2">
+      
+      <!-- Brand / Title (Clean, minimal) -->
+      <div class="flex items-center">
+        <h1 class="text-lg sm:text-xl font-extrabold tracking-wider text-white leading-none">ΛΕΞΟΥΛΙ</h1>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-1.5">
+        <!-- Sound Toggle Button -->
+        <button id="soundToggleBtn" onclick="toggleSound()" title="Ήχος Πληκτρολογίου" class="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-emerald-400 transition">
+          <svg id="soundOnIcon" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+          </svg>
+          <svg id="soundOffIcon" class="w-4 h-4 hidden text-zinc-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+          </svg>
+        </button>
+
+        <!-- Hint Button -->
+        <button id="hintBtn" onclick="useHint()" title="Υπόδειξη: Αποκαλύπτει 1 γράμμα" class="px-2.5 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-semibold flex items-center gap-1 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          </svg>
+          <span class="hidden md:inline">Υπόδειξη</span>
+          <span id="hintCounter" class="px-1 rounded bg-amber-500/30 text-[10px]">2</span>
+        </button>
+
+        <!-- New Game Button -->
+        <button onclick="startNewGame()" title="Νέα τυχαία λέξη" class="px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 text-xs font-semibold flex items-center gap-1 transition">
+          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          <span class="hidden sm:inline">Νέο</span>
+        </button>
+
+        <!-- Stats Modal Button -->
+        <button onclick="openModal('statsModal')" title="Στατιστικά" class="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+        </button>
+
+        <!-- Settings / Help Modal Button -->
+        <button onclick="openModal('helpModal')" title="Οδηγίες & Ρυθμίσεις" class="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed top-14 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none w-full max-w-md px-4"></div>
+
+  <!-- Main Game Area -->
+  <main class="flex-1 flex flex-col justify-between items-center w-full max-w-2xl mx-auto px-1.5 sm:px-3 py-1 sm:py-3 overflow-hidden safe-bottom">
+    
+    <!-- Top Status Bar (Tries Remaining & EN Key Sub-label Toggle) -->
+    <div class="w-full flex items-center justify-between gap-2 px-2 mb-0.5 text-xs text-zinc-400 shrink-0">
+      <div class="flex items-center gap-2">
+        <span id="triesStatusText" class="font-medium text-zinc-300">Προσπάθεια 1 από 7</span>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Show English Key Mapping Sub-labels on Keyboard -->
+        <label class="inline-flex items-center gap-1.5 cursor-pointer select-none" title="Εμφάνιση αντίστοιχων αγγλικών πλήκτρων πάνω στο πληκτρολόγιο">
+          <input type="checkbox" id="showEnSublabelsToggle" checked onchange="toggleEnSublabels(this.checked)" class="sr-only peer">
+          <div class="w-7 h-4 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all relative peer-checked:bg-sky-600"></div>
+          <span class="text-[11px] text-zinc-300 font-medium">EN Πλήκτρα</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Game Grid Wrapper -->
+    <div class="flex-1 flex items-center justify-center w-full min-h-0 my-0.5">
+      <div id="boardGrid" class="grid gap-1 sm:gap-2 mx-auto transition-all"></div>
+    </div>
+
+    <!-- End-of-Round Banner (Hidden until game ends) -->
+    <div id="gameOverBanner" class="hidden w-full max-w-lg mb-1.5 p-2.5 sm:p-3 rounded-xl bg-zinc-900/95 border border-zinc-700 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-2 shrink-0">
+      <div class="text-center sm:text-left">
+        <div id="gameOverTitle" class="text-xs sm:text-sm font-extrabold uppercase tracking-wide text-emerald-400">ΣΥΓΧΑΡΗΤΗΡΙΑ!</div>
+        <div class="text-xs text-zinc-300 mt-0.5 flex flex-wrap items-center justify-center sm:justify-start gap-1.5">
+          <span>Η μυστική λέξη ήταν:</span>
+          <span id="revealedWordBadge" class="font-extrabold text-white bg-zinc-800 px-2 py-0.5 rounded border border-zinc-600 tracking-widest">ΘΑΛΑΣΣΑ</span>
+          <span id="hintsUsedBadge" class="text-[11px] font-semibold px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
+            Υποδείξεις: 0/2
+          </span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="startNewGame()" class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-extrabold text-white shadow-lg shadow-emerald-900/40 transition">
+          Παίξε Ξανά →
+        </button>
+      </div>
+    </div>
+
+    <!-- On-Screen Greek Keyboard -->
+    <div id="keyboardContainer" class="w-full max-w-xl px-0.5 sm:px-1 pb-0.5 select-none flex flex-col gap-1 sm:gap-1.5 shrink-0">
+      <!-- Populated dynamically by JS -->
+    </div>
+  </main>
+
+  <!-- Statistics Modal -->
+  <div id="statsModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+    <div class="bg-zinc-900 border border-zinc-700 rounded-2xl max-w-md w-full p-5 shadow-2xl relative">
+      <button onclick="closeModal('statsModal')" class="absolute top-4 right-4 text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-800">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+
+      <h2 class="text-lg font-extrabold tracking-wide text-white mb-4 flex items-center gap-2">
+        <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+        ΣΤΑΤΙΣΤΙΚΑ ΠΑΙΚΤΗ
+      </h2>
+
+      <!-- 4 Key Metrics -->
+      <div class="grid grid-cols-4 gap-2 text-center mb-5">
+        <div class="bg-zinc-800/80 border border-zinc-700/60 rounded-xl p-2.5">
+          <div id="statPlayed" class="text-2xl font-extrabold text-white">0</div>
+          <div class="text-[11px] text-zinc-400 mt-0.5">Παιχνίδια</div>
+        </div>
+        <div class="bg-zinc-800/80 border border-zinc-700/60 rounded-xl p-2.5">
+          <div id="statWinPct" class="text-2xl font-extrabold text-emerald-400">0%</div>
+          <div class="text-[11px] text-zinc-400 mt-0.5">Νίκες %</div>
+        </div>
+        <div class="bg-zinc-800/80 border border-zinc-700/60 rounded-xl p-2.5">
+          <div id="statCurrentStreak" class="text-2xl font-extrabold text-amber-400">0</div>
+          <div class="text-[11px] text-zinc-400 mt-0.5">Σερί</div>
+        </div>
+        <div class="bg-zinc-800/80 border border-zinc-700/60 rounded-xl p-2.5">
+          <div id="statMaxStreak" class="text-2xl font-extrabold text-sky-400">0</div>
+          <div class="text-[11px] text-zinc-400 mt-0.5">Μέγιστο Σερί</div>
+        </div>
+      </div>
+
+      <!-- Guess Distribution Bars -->
+      <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2.5">Κατανομή Προσπαθειών</h3>
+      <div id="guessDistributionContainer" class="space-y-1.5 mb-5 text-xs"></div>
+
+      <!-- Last Round Hints Info inside Stats Modal -->
+      <div id="statsLastRoundInfo" class="hidden mb-4 p-2.5 rounded-xl bg-zinc-800/70 border border-zinc-700/60 text-xs text-zinc-300 flex items-center justify-between">
+        <span>Τελευταίος γύρος:</span>
+        <span id="statsHintsUsedText" class="font-bold text-amber-300">0 υποδείξεις</span>
+      </div>
+
+      <div class="flex items-center justify-between pt-3 border-t border-zinc-800">
+        <button onclick="resetStats()" class="text-xs text-rose-400 hover:text-rose-300 font-medium">
+          Μηδενισμός Στατιστικών
+        </button>
+        <div class="flex gap-2">
+          <button onclick="closeModal('statsModal'); startNewGame();" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white transition">
+            Νέα Λέξη
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help & Instructions Modal -->
+  <div id="helpModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+    <div class="bg-zinc-900 border border-zinc-700 rounded-2xl max-w-lg w-full p-5 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+      <button onclick="closeModal('helpModal')" class="absolute top-4 right-4 text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-800">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+
+      <h2 class="text-lg font-extrabold tracking-wide text-white mb-2">ΠΩΣ ΠΑΙΖΕΤΑΙ ΤΟ ΛΕΞΟΥΛΙ (6 ΓΡΑΜΜΑΤΑ)</h2>
+      <p class="text-xs text-zinc-300 leading-relaxed mb-3">
+        Μάντεψε το μυστικό ελληνικό λήμμα <strong>6 γραμμάτων</strong> σε <strong>7 προσπάθειες</strong>!
+        Γίνονται δεκτές <strong>αποκλειστικά υπαρκτές λέξεις σε μορφή λήμματος λεξικού</strong>:
+        ουσιαστικά σε ονομαστική ενικού (π.χ. <em>ΑΝΕΜΟΣ, ΕΛΠΙΔΑ, ΟΝΕΙΡΟ</em>), επίθετα σε ονομαστική ενικού αρσενικού (π.χ. <em>ΜΙΚΡΟΣ, ΛΕΥΚΟΣ</em>), ρήματα σε α' ενικό ενεστώτα (π.χ. <em>ΑΡΧΙΖΩ, ΝΟΜΙΖΩ</em>) και επιρρήματα (π.χ. <em>ΣΗΜΕΡΑ, ΣΧΕΔΟΝ</em>).
+      </p>
+
+      <!-- Color Legend -->
+      <div class="space-y-2.5 bg-zinc-800/60 p-3.5 rounded-xl border border-zinc-700/70 mb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-md bg-[#538d4e] flex items-center justify-center font-extrabold text-white shrink-0">Θ</div>
+          <p class="text-xs text-zinc-200"><strong class="text-emerald-400">Πράσινο:</strong> Το γράμμα υπάρχει στη λέξη και είναι στη <strong>σωστή θέση</strong>.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-md bg-[#b59f3b] flex items-center justify-center font-extrabold text-white shrink-0">Α</div>
+          <p class="text-xs text-zinc-200"><strong class="text-amber-400">Κίτρινο:</strong> Το γράμμα υπάρχει στη λέξη αλλά σε <strong>διαφορετική θέση</strong>.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-md bg-[#3a3a3c] flex items-center justify-center font-extrabold text-zinc-300 shrink-0">Λ</div>
+          <p class="text-xs text-zinc-200"><strong class="text-zinc-400">Γκρι:</strong> Το γράμμα <strong>δεν υπάρχει</strong> στη λέξη (ή δεν εμφανίζεται άλλες φορές).</p>
+        </div>
+      </div>
+
+      <!-- Keyboard Feature Highlight -->
+      <div class="bg-sky-950/40 border border-sky-500/30 rounded-xl p-3.5 text-xs text-sky-100 space-y-1.5">
+        <div class="font-bold text-sky-300 flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          Έξυπνη Υποστήριξη Πληκτρολογίου (GR &amp; EN)
+        </div>
+        <p class="text-zinc-300 leading-relaxed">
+          Δεν χρειάζεται καν να αλλάξεις γλώσσα στα Windows/Mac! Μπορείς να πληκτρολογείς είτε με <strong>Ελληνικά</strong> είτε με <strong>Αγγλικά (QWERTY)</strong>:
+          <br />
+          <span class="text-[11px] text-sky-200 font-mono">U → Θ, J → Ξ, C → Ψ, V → Ω, H → Η, Y → Υ, R → Ρ</span> κ.λπ.
+          <br />
+          Μπορείς επίσης να κάνεις κλικ/άγγιγμα σε οποιοδήποτε κουτάκι της τρέχουσας σειράς για να γράψεις κατευθείαν σε εκείνη τη θέση!
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /********************************************************************
+     * 1. GREEK LANGUAGE NORMALIZATION & KEYBOARD MAPPINGS
+     ********************************************************************/
+    const VALID_GREEK_LETTERS = new Set([
+      'Α','Β','Γ','Δ','Ε','Ζ','Η','Θ','Ι','Κ','Λ','Μ',
+      'Ν','Ξ','Ο','Π','Ρ','Σ','Τ','Υ','Φ','Χ','Ψ','Ω'
+    ]);
+
+    const GREEK_VOWELS = new Set(['Α', 'Ε', 'Η', 'Ι', 'Ο', 'Υ', 'Ω']);
+
+    // Map English QWERTY physical keys to standard Greek keyboard layout letters
+    const EN_TO_GR_MAP = {
+      'A': 'Α', 'B': 'Β', 'G': 'Γ', 'D': 'Δ', 'E': 'Ε', 'Z': 'Ζ',
+      'H': 'Η', 'U': 'Θ', 'I': 'Ι', 'K': 'Κ', 'L': 'Λ', 'M': 'Μ',
+      'N': 'Ν', 'J': 'Ξ', 'O': 'Ο', 'P': 'Π', 'R': 'Ρ', 'S': 'Σ',
+      'T': 'Τ', 'Y': 'Υ', 'F': 'Φ', 'X': 'Χ', 'C': 'Ψ', 'V': 'Ω',
+      'W': 'Σ' // W is ς on Greek keyboards, mapped to Σ
+    };
+
+    // Reverse map so we can display the English key hint on each Greek key
+    const GR_TO_EN_LABEL = {
+      'Α': 'A', 'Β': 'B', 'Γ': 'G', 'Δ': 'D', 'Ε': 'E', 'Ζ': 'Z',
+      'Η': 'H', 'Θ': 'U', 'Ι': 'I', 'Κ': 'K', 'Λ': 'L', 'Μ': 'M',
+      'Ν': 'N', 'Ξ': 'J', 'Ο': 'O', 'Π': 'P', 'Ρ': 'R', 'Σ': 'S',
+      'Τ': 'T', 'Υ': 'Y', 'Φ': 'F', 'Χ': 'X', 'Ψ': 'C', 'Ω': 'V'
+    };
+
+    // Normalize any Greek character or string (strip accents, diaeresis, convert ς -> Σ)
+    function normalizeGreek(str) {
+      if (!str) return '';
+      return str
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Strip combining diacritics/tonos/dialytika
+        .toUpperCase()
+        .replace(/Σ|ς/g, 'Σ')
+        .replace(/Ά/g, 'Α')
+        .replace(/Έ/g, 'Ε')
+        .replace(/Ή/g, 'Η')
+        .replace(/Ί|Ϊ/g, 'Ι')
+        .replace(/Ό/g, 'Ο')
+        .replace(/Ύ|Ϋ/g, 'Υ')
+        .replace(/Ώ/g, 'Ω')
+        .trim();
+    }
+
+    /********************************************************************
+     * 2. CURATED 6-LETTER GREEK DICTIONARY LEMMAS (ΛΗΜΜΑΤΑ ΛΕΞΙΚΟΥ)
+     *    Strictly base dictionary forms of 6 letters:
+     *    - Nouns in Nominative Singular (Ουσιαστικά σε Ονομ. Ενικού)
+     *    - Adjectives in Nominative Singular Masculine (Επίθετα σε -ος/-ης/-υς)
+     *    - Verbs in 1st Person Singular Present (Ρήματα σε -ω/-ομαι)
+     *    - Adverbs (Επιρρήματα)
+     ********************************************************************/
+    const RAW_LEMMAS_6 = [
+      // === Α ===
+      "ΑΓΑΘΟΣ", "ΑΓΑΛΜΑ", "ΑΓΑΜΟΣ", "ΑΓΑΠΑΩ", "ΑΓΓΕΙΟ", "ΑΓΓΙΖΩ", "ΑΓΚΑΘΙ", "ΑΓΚΥΡΑ",
+      "ΑΓΟΝΟΣ", "ΑΓΡΙΟΣ", "ΑΓΩΓΟΣ", "ΑΓΩΝΑΣ", "ΑΓΩΝΙΩ", "ΑΔΕΙΟΣ", "ΑΔΕΛΦΗ", "ΑΔΕΡΦΗ",
+      "ΑΔΗΛΟΣ", "ΑΔΙΚΟΣ", "ΑΔΟΛΟΣ", "ΑΕΡΑΚΙ", "ΑΕΡΙΖΩ", "ΑΕΡΙΟΣ", "ΑΘΛΗΜΑ", "ΑΘΛΗΣΗ",
+      "ΑΘΛΙΟΣ", "ΑΙΓΑΙΟ", "ΑΙΓΙΔΑ", "ΑΙΘΡΙΑ", "ΑΙΡΕΣΗ", "ΑΙΤΗΜΑ", "ΑΙΤΗΣΗ", "ΑΙΩΝΑΣ",
+      "ΑΚΑΚΙΑ", "ΑΚΑΚΟΣ", "ΑΚΑΝΘΑ", "ΑΚΟΠΟΣ", "ΑΚΡΙΔΑ", "ΑΚΤΙΝΑ", "ΑΚΥΡΟΣ", "ΑΛΑΛΟΣ",
+      "ΑΛΕΙΦΩ", "ΑΛΕΠΟΥ", "ΑΛΕΥΡΙ", "ΑΛΗΘΗΣ", "ΑΛΗΤΗΣ", "ΑΛΙΕΙΑ", "ΑΛΚΟΟΛ", "ΑΛΛΑΓΗ",
+      "ΑΛΛΑΖΩ", "ΑΛΛΙΩΣ", "ΑΛΜΥΡΑ", "ΑΛΟΓΟΣ", "ΑΛΥΣΟΣ", "ΑΛΥΧΤΩ", "ΑΛΦΑΔΙ", "ΑΜΑΘΗΣ",
+      "ΑΜΑΞΑΣ", "ΑΜΕΣΟΣ", "ΑΜΕΣΩΣ", "ΑΜΟΙΒΗ", "ΑΜΠΕΛΙ", "ΑΜΦΟΡΑ", "ΑΝΑΓΚΗ", "ΑΝΑΚΤΩ",
+      "ΑΝΑΛΥΩ", "ΑΝΔΡΑΣ", "ΑΝΕΜΙΑ", "ΑΝΕΜΟΣ", "ΑΝΕΤΟΣ", "ΑΝΕΤΩΣ", "ΑΝΘΗΣΗ", "ΑΝΘΙΖΩ",
+      "ΑΝΘΡΑΞ", "ΑΝΙΣΟΣ", "ΑΝΟΔΟΣ", "ΑΝΟΙΓΩ", "ΑΝΟΙΞΗ", "ΑΝΟΜΙΑ", "ΑΝΟΜΟΣ", "ΑΝΤΑΡΑ",
+      "ΑΝΤΕΧΩ", "ΑΝΤΙΔΙ", "ΑΝΤΛΙΑ", "ΑΝΤΡΑΣ", "ΑΞΕΝΟΣ", "ΑΞΙΩΜΑ", "ΑΞΙΩΝΩ", "ΑΞΟΝΑΣ",
+      "ΑΟΙΔΟΣ", "ΑΠΑΛΟΣ", "ΑΠΑΙΤΩ", "ΑΠΑΝΤΩ", "ΑΠΕΙΛΗ", "ΑΠΕΙΛΩ", "ΑΠΙΔΙΑ", "ΑΠΛΑΔΑ",
+      "ΑΠΛΩΜΑ", "ΑΠΛΩΝΩ", "ΑΠΟΚΤΩ", "ΑΠΟΛΥΩ", "ΑΠΟΡΙΑ", "ΑΠΟΡΟΣ", "ΑΠΥΡΟΣ", "ΑΡΑΙΟΣ",
+      "ΑΡΑΚΑΣ", "ΑΡΑΠΗΣ", "ΑΡΑΧΝΗ", "ΑΡΒΥΛΑ", "ΑΡΕΣΚΩ", "ΑΡΙΣΤΑ", "ΑΡΚΕΤΑ", "ΑΡΜΟΖΩ",
+      "ΑΡΜΥΡΑ", "ΑΡΝΗΣΗ", "ΑΡΟΤΡΟ", "ΑΡΟΥΡΑ", "ΑΡΠΑΓΗ", "ΑΡΠΑΖΩ", "ΑΡΤΙΟΣ", "ΑΡΧΕΙΟ",
+      "ΑΡΧΙΖΩ", "ΑΣΑΦΗΣ", "ΑΣΕΒΗΣ", "ΑΣΗΜΟΣ", "ΑΣΚΗΣΗ", "ΑΣΚΟΠΑ", "ΑΣΟΦΟΣ", "ΑΣΠΙΔΑ",
+      "ΑΣΠΡΟΣ", "ΑΣΤΕΙΟ", "ΑΣΤΕΡΙ", "ΑΣΥΛΙΑ", "ΑΤΑΞΙΑ", "ΑΤΕΛΗΣ", "ΑΤΙΜΙΑ", "ΑΤΙΜΟΣ",
+      "ΑΤΟΚΟΣ", "ΑΤΟΝΟΣ", "ΑΤΥΧΙΑ", "ΑΤΥΧΟΣ", "ΑΤΥΧΩΣ", "ΑΥΛΑΙΑ", "ΑΥΛΑΚΙ", "ΑΥΞΑΝΩ",
+      "ΑΥΞΗΣΗ", "ΑΦΑΙΡΩ", "ΑΦΑΝΗΣ", "ΑΦΘΟΝΑ", "ΑΦΙΛΟΣ", "ΑΦΟΒΟΣ", "ΑΦΡΙΖΩ", "ΑΦΩΝΟΣ",
+      "ΑΧΑΡΟΣ", "ΑΧΛΑΔΙ", "ΑΧΝΙΖΩ", "ΑΨΥΧΟΣ",
+
+      // === Β ===
+      "ΒΑΔΙΖΩ", "ΒΑΘΜΟΣ", "ΒΑΘΥΝΩ", "ΒΑΡΕΛΙ", "ΒΑΡΥΝΩ", "ΒΑΣΑΝΟ", "ΒΑΣΙΖΩ", "ΒΓΑΙΝΩ",
+      "ΒΕΒΑΙΑ", "ΒΕΛΑΖΩ", "ΒΕΛΟΝΑ", "ΒΕΛΟΝΙ", "ΒΙΑΙΩΣ", "ΒΙΒΛΙΟ", "ΒΛΑΠΤΩ", "ΒΛΕΜΜΑ",
+      "ΒΟΓΓΑΩ", "ΒΟΗΘΑΩ", "ΒΟΗΘΟΣ", "ΒΟΛΕΥΩ", "ΒΟΛΙΔΑ", "ΒΟΡΙΑΣ", "ΒΟΣΚΑΩ", "ΒΟΣΚΟΣ",
+      "ΒΟΤΑΝΟ", "ΒΟΥΙΖΩ", "ΒΟΥΤΑΩ", "ΒΟΥΤΙΑ", "ΒΡΑΔΙΑ", "ΒΡΑΔΥΣ", "ΒΡΑΧΟΣ", "ΒΡΑΧΥΣ",
+      "ΒΡΕΦΟΣ", "ΒΡΙΣΚΩ", "ΒΡΟΜΙΑ", "ΒΡΟΝΤΩ", "ΒΥΘΙΖΩ",
+
+      // === Γ ===
+      "ΓΑΛΗΝΗ", "ΓΑΛΛΙΑ", "ΓΑΛΛΟΣ", "ΓΑΡΙΔΑ", "ΓΑΤΑΚΙ", "ΓΑΥΡΟΣ", "ΓΕΜΙΖΩ", "ΓΕΜΙΣΗ",
+      "ΓΕΝΕΣΗ", "ΓΕΝΝΑΩ", "ΓΕΡΑΖΩ", "ΓΕΡΑΚΙ", "ΓΕΦΥΡΑ", "ΓΗΙΝΟΣ", "ΓΗΠΕΔΟ", "ΓΙΑΓΙΑ",
+      "ΓΙΟΡΤΗ", "ΓΛΑΡΟΣ", "ΓΛΕΝΤΙ", "ΓΛΕΝΤΩ", "ΓΛΥΚΟΣ", "ΓΛΥΚΥΣ", "ΓΛΥΠΤΟ", "ΓΛΩΣΣΑ",
+      "ΓΟΜΩΣΗ", "ΓΟΝΑΤΟ", "ΓΟΝΕΑΣ", "ΓΟΡΓΟΣ", "ΓΟΥΡΝΑ", "ΓΡΑΜΜΗ", "ΓΡΟΘΙΑ", "ΓΡΥΛΟΣ",
+      "ΓΥΜΝΟΣ", "ΓΥΡΕΥΩ", "ΓΥΡΙΖΩ", "ΓΥΡΝΑΩ",
+
+      // === Δ ===
+      "ΔΑΚΡΥΟ", "ΔΑΜΑΖΩ", "ΔΑΜΑΛΙ", "ΔΑΝΕΙΟ", "ΔΑΠΑΝΗ", "ΔΑΠΑΝΩ", "ΔΑΠΕΔΟ", "ΔΕΙΓΜΑ",
+      "ΔΕΙΛΙΑ", "ΔΕΙΛΟΣ", "ΔΕΙΠΝΟ", "ΔΕΙΧΝΩ", "ΔΕΚΑΔΑ", "ΔΕΛΤΙΟ", "ΔΕΜΑΤΙ", "ΔΕΝΔΡΟ",
+      "ΔΕΝΤΡΟ", "ΔΕΞΙΟΣ", "ΔΕΟΜΑΙ", "ΔΕΣΙΜΟ", "ΔΕΣΜΟΣ", "ΔΗΛΩΝΩ", "ΔΗΜΙΟΣ", "ΔΙΑΙΡΩ",
+      "ΔΙΑΙΤΑ", "ΔΙΑΚΟΣ", "ΔΙΑΛΥΩ", "ΔΙΑΝΥΩ", "ΔΙΑΡΚΩ", "ΔΙΔΥΜΟ", "ΔΙΚΑΖΩ", "ΔΙΚΑΙΟ",
+      "ΔΙΚΤΥΟ", "ΔΙΟΔΟΣ", "ΔΙΠΛΟΣ", "ΔΙΣΚΟΣ", "ΔΙΩΧΝΩ", "ΔΟΚΙΜΗ", "ΔΟΛΙΟΣ", "ΔΟΛΩΜΑ",
+      "ΔΟΜΗΣΗ", "ΔΟΝΗΣΗ", "ΔΟΞΑΖΩ", "ΔΟΥΚΑΣ", "ΔΟΥΛΟΣ", "ΔΡΑΚΟΣ", "ΔΡΑΧΜΗ", "ΔΡΙΜΥΣ",
+      "ΔΡΟΜΟΣ", "ΔΡΟΣΙΑ", "ΔΡΥΜΟΣ", "ΔΥΝΑΜΗ", "ΔΩΡΙΖΩ",
+
+      // === Ε ===
+      "ΕΓΓΟΝΙ", "ΕΓΕΡΣΗ", "ΕΓΚΑΛΩ", "ΕΔΑΦΟΣ", "ΕΘΙΜΟΣ", "ΕΙΔΗΣΗ", "ΕΙΔΩΛΟ", "ΕΙΚΑΖΩ",
+      "ΕΙΚΟΝΑ", "ΕΙΡΗΝΗ", "ΕΙΡΜΟΣ", "ΕΙΣΑΓΩ", "ΕΚΒΑΣΗ", "ΕΚΔΙΔΩ", "ΕΚΔΟΣΗ", "ΕΚΔΥΣΗ",
+      "ΕΚΘΕΜΑ", "ΕΚΘΕΣΗ", "ΕΚΘΕΤΩ", "ΕΚΛΕΓΩ", "ΕΚΛΟΓΗ", "ΕΚΛΥΣΗ", "ΕΚΠΝΕΩ", "ΕΚΠΝΟΗ",
+      "ΕΚΤΑΣΗ", "ΕΚΤΕΛΩ", "ΕΚΤΙΜΩ", "ΕΚΦΥΣΗ", "ΕΛΕΓΧΩ", "ΕΛΕΥΣΗ", "ΕΛΠΙΔΑ", "ΕΛΠΙΖΩ",
+      "ΕΜΒΟΛΟ", "ΕΜΒΡΥΟ", "ΕΜΠΝΕΩ", "ΕΜΦΑΣΗ", "ΕΝΑΡΞΗ", "ΕΝΑΤΟΣ", "ΕΝΔΙΔΩ", "ΕΝΔΥΜΑ",
+      "ΕΝΔΥΣΗ", "ΕΝΕΔΡΑ", "ΕΝΕΡΓΩ", "ΕΝΘΕΜΑ", "ΕΝΘΕΟΣ", "ΕΝΝΟΙΑ", "ΕΝΟΡΙΑ", "ΕΝΟΤΗΣ",
+      "ΕΝΟΧΛΩ", "ΕΝΟΧΟΣ", "ΕΝΤΑΣΗ", "ΕΝΤΟΛΗ", "ΕΝΤΟΜΟ", "ΕΞΑΠΤΩ", "ΕΞΑΡΣΗ", "ΕΞΑΡΤΩ",
+      "ΕΞΑΣΚΩ", "ΕΞΕΔΡΑ", "ΕΞΟΔΟΣ", "ΕΞΟΡΙΑ", "ΕΞΟΧΟΣ", "ΕΠΑΘΛΟ", "ΕΠΑΙΝΩ", "ΕΠΑΙΤΩ",
+      "ΕΠΑΡΚΩ", "ΕΠΑΡΣΗ", "ΕΠΑΥΛΗ", "ΕΠΙΛΥΩ", "ΕΠΙΝΟΩ", "ΕΠΙΠΛΟ", "ΕΠΙΣΗΣ", "ΕΠΙΧΕΩ",
+      "ΕΡΕΒΟΣ", "ΕΡΕΥΝΑ", "ΕΡΕΥΝΩ", "ΕΡΗΜΙΑ", "ΕΡΗΜΟΣ", "ΕΡΠΕΤΟ", "ΕΡΩΤΑΣ", "ΕΣΘΗΤΑ",
+      "ΕΥΘΥΝΗ", "ΕΥΛΟΓΩ", "ΕΥΝΟΙΑ", "ΕΥΡΕΣΗ", "ΕΥΤΥΧΩ", "ΕΥΦΥΗΣ", "ΕΥΦΥΙΑ", "ΕΥΩΔΗΣ",
+      "ΕΦΕΤΗΣ", "ΕΦΗΒΟΣ", "ΕΦΙΣΤΩ", "ΕΦΟΔΟΣ", "ΕΦΟΡΙΑ", "ΕΦΟΡΜΩ", "ΕΦΟΡΟΣ", "ΕΧΘΡΟΣ",
+      "ΕΧΙΔΝΑ",
+
+      // === Ζ ===
+      "ΖΑΚΕΤΑ", "ΖΑΛΑΔΑ", "ΖΑΛΙΖΩ", "ΖΑΡΩΝΩ", "ΖΑΧΑΡΗ", "ΖΕΜΑΤΩ", "ΖΕΣΤΟΣ", "ΖΕΥΓΟΣ",
+      "ΖΗΛΕΥΩ", "ΖΗΤΗΜΑ", "ΖΗΤΗΣΗ", "ΖΟΡΙΖΩ", "ΖΟΥΛΑΩ", "ΖΥΓΙΖΩ", "ΖΥΜΑΡΙ", "ΖΥΜΩΝΩ",
+      "ΖΥΜΩΣΗ", "ΖΩΗΡΟΣ",
+
+      // === Η ===
+      "ΗΓΕΜΩΝ", "ΗΓΕΤΗΣ", "ΗΘΙΚΟΣ", "ΗΛΙΚΙΑ", "ΗΜΕΡΟΣ", "ΗΡΕΜΙΑ", "ΗΡΕΜΟΣ", "ΗΡΩΙΔΑ",
+      "ΗΣΥΧΙΑ", "ΗΣΥΧΟΣ", "ΗΧΗΡΟΣ",
+
+      // === Θ ===
+      "ΘΑΜΝΟΣ", "ΘΑΡΡΟΣ", "ΘΕΑΤΗΣ", "ΘΕΑΤΡΟ", "ΘΕΙΚΟΣ", "ΘΕΛΗΣΗ", "ΘΕΜΙΔΑ", "ΘΕΟΤΗΣ",
+      "ΘΕΡΙΖΩ", "ΘΕΡΜΟΣ", "ΘΕΣΜΟΣ", "ΘΕΩΜΑΙ", "ΘΕΩΡΙΑ", "ΘΗΚΑΡΙ", "ΘΗΛΑΖΩ", "ΘΗΛΕΙΑ",
+      "ΘΗΛΥΚΟ", "ΘΗΡΑΜΑ", "ΘΗΡΕΥΩ", "ΘΙΑΣΟΣ", "ΘΝΗΤΟΣ", "ΘΟΛΩΝΩ", "ΘΟΡΥΒΩ", "ΘΡΑΣΟΣ",
+      "ΘΡΑΣΥΣ", "ΘΡΑΥΣΗ", "ΘΡΗΝΟΣ", "ΘΡΟΝΟΣ", "ΘΡΥΛΟΣ", "ΘΥΕΛΛΑ", "ΘΥΜΑΡΙ", "ΘΥΜΗΣΗ",
+      "ΘΥΜΙΖΩ", "ΘΥΜΩΝΩ", "ΘΥΡΙΔΑ", "ΘΩΠΕΥΩ",
+
+      // === Ι ===
+      "ΙΑΤΡΟΣ", "ΙΔΙΩΜΑ", "ΙΔΡΥΜΑ", "ΙΔΡΥΣΗ", "ΙΔΡΩΝΩ", "ΙΕΡΕΑΣ", "ΙΚΑΝΟΣ", "ΙΚΕΣΙΑ",
+      "ΙΛΑΡΟΣ", "ΙΜΑΤΙΟ", "ΙΠΠΕΑΣ", "ΙΠΠΕΥΩ", "ΙΣΙΑΖΩ", "ΙΣΙΩΜΑ", "ΙΣΚΙΟΣ", "ΙΣΧΝΟΣ",
+      "ΙΤΑΛΟΣ", "ΙΤΑΜΟΣ",
+
+      // === Κ ===
+      "ΚΑΒΓΑΣ", "ΚΑΘΕΞΗ", "ΚΑΘΙΖΩ", "ΚΑΙΡΟΣ", "ΚΑΚΤΟΣ", "ΚΑΚΩΣΗ", "ΚΑΛΑΘΙ", "ΚΑΛΑΜΙ",
+      "ΚΑΛΛΟΣ", "ΚΑΛΤΣΑ", "ΚΑΛΥΒΑ", "ΚΑΛΥΒΙ", "ΚΑΛΥΨΗ", "ΚΑΜΑΡΑ", "ΚΑΜΑΡΙ", "ΚΑΜΙΝΙ",
+      "ΚΑΜΠΙΑ", "ΚΑΜΠΟΣ", "ΚΑΜΠΤΩ", "ΚΑΝΑΛΙ", "ΚΑΝΑΤΑ", "ΚΑΝΕΛΑ", "ΚΑΠΑΚΙ", "ΚΑΠΕΛΟ",
+      "ΚΑΠΝΟΣ", "ΚΑΡΑΒΙ", "ΚΑΡΔΙΑ", "ΚΑΡΠΟΣ", "ΚΑΡΥΔΙ", "ΚΑΣΕΤΑ", "ΚΑΣΤΡΟ", "ΚΑΤΑΡΑ",
+      "ΚΑΤΕΧΩ", "ΚΑΥΓΑΣ", "ΚΑΦΕΤΙ", "ΚΑΨΙΜΟ", "ΚΕΔΡΟΣ", "ΚΕΙΜΑΙ", "ΚΕΝΤΑΩ", "ΚΕΝΤΡΟ",
+      "ΚΕΝΩΣΗ", "ΚΕΡΑΙΑ", "ΚΕΡΑΣΙ", "ΚΕΡΑΤΟ", "ΚΕΡΔΟΣ", "ΚΕΡΝΑΩ", "ΚΕΦΑΛΗ", "ΚΕΦΑΛΙ",
+      "ΚΗΔΕΙΑ", "ΚΗΔΕΥΩ", "ΚΗΛΙΔΑ", "ΚΙΘΑΡΑ", "ΚΙΝΗΜΑ", "ΚΙΝΗΣΗ", "ΚΙΟΝΑΣ", "ΚΛΑΔΟΣ",
+      "ΚΛΑΨΑΣ", "ΚΛΕΙΔΙ", "ΚΛΕΙΝΩ", "ΚΛΗΡΟΣ", "ΚΛΙΜΑΞ", "ΚΛΟΤΣΩ", "ΚΛΟΥΒΙ", "ΚΛΩΤΣΩ",
+      "ΚΟΙΛΙΑ", "ΚΟΙΛΟΣ", "ΚΟΙΝΟΣ", "ΚΟΙΤΑΩ", "ΚΟΛΑΖΩ", "ΚΟΛΑΣΗ", "ΚΟΛΛΑΩ", "ΚΟΛΟΝΑ",
+      "ΚΟΛΠΟΣ", "ΚΟΜΙΖΩ", "ΚΟΜΠΟΣ", "ΚΟΝΙΔΑ", "ΚΟΝΤΟΣ", "ΚΟΠΑΔΙ", "ΚΟΠΑΖΩ", "ΚΟΠΑΝΑ",
+      "ΚΟΠΡΙΑ", "ΚΟΠΩΣΗ", "ΚΟΡΑΚΙ", "ΚΟΡΑΛΙ", "ΚΟΡΜΟΣ", "ΚΟΡΥΦΗ", "ΚΟΡΩΝΑ", "ΚΟΣΜΟΣ",
+      "ΚΟΥΒΑΣ", "ΚΟΥΚΛΑ", "ΚΟΥΚΟΣ", "ΚΟΥΜΠΙ", "ΚΟΥΝΑΩ", "ΚΟΥΝΙΑ", "ΚΟΥΡΣΑ", "ΚΟΥΤΟΣ",
+      "ΚΟΥΦΟΣ", "ΚΟΦΙΝΙ", "ΚΡΑΝΙΟ", "ΚΡΑΝΟΣ", "ΚΡΑΤΑΩ", "ΚΡΑΤΟΣ", "ΚΡΑΥΓΗ", "ΚΡΕΜΑΩ",
+      "ΚΡΙΚΟΣ", "ΚΡΙΝΟΣ", "ΚΡΙΤΗΣ", "ΚΡΟΚΟΣ", "ΚΡΟΣΣΙ", "ΚΡΟΤΟΣ", "ΚΡΟΥΣΗ", "ΚΡΥΠΤΗ",
+      "ΚΡΥΦΟΣ", "ΚΡΥΩΝΩ", "ΚΤΗΝΟΣ", "ΚΤΗΡΙΟ", "ΚΤΙΡΙΟ", "ΚΤΥΠΑΩ", "ΚΤΥΠΟΣ", "ΚΥΑΘΟΣ",
+      "ΚΥΔΩΝΙ", "ΚΥΚΛΟΣ", "ΚΥΚΝΟΣ", "ΚΥΛΙΣΗ", "ΚΥΜΙΝΟ", "ΚΥΝΗΓΙ", "ΚΥΝΗΓΩ", "ΚΥΡΙΟΣ",
+      "ΚΥΡΤΟΣ", "ΚΥΡΩΝΩ", "ΚΥΡΩΣΗ", "ΚΩΛΥΜΑ",
+
+      // === Λ ===
+      "ΛΑΒΙΔΑ", "ΛΑΒΩΝΩ", "ΛΑΙΚΟΣ", "ΛΑΙΜΟΣ", "ΛΑΚΚΟΣ", "ΛΑΜΠΑΣ", "ΛΑΤΡΗΣ", "ΛΑΦΥΡΟ",
+      "ΛΑΧΑΝΟ", "ΛΑΧΕΙΟ", "ΛΕΙΜΩΝ", "ΛΕΚΑΝΗ", "ΛΕΜΟΝΙ", "ΛΕΞΙΚΟ", "ΛΕΠΙΔΑ", "ΛΕΠΤΟΣ",
+      "ΛΕΡΩΝΩ", "ΛΕΥΚΟΣ", "ΛΗΣΤΗΣ", "ΛΙΑΝΟΣ", "ΛΙΒΑΔΙ", "ΛΙΒΑΝΙ", "ΛΙΓΝΟΣ", "ΛΙΓΩΝΩ",
+      "ΛΙΘΑΡΙ", "ΛΙΜΑΝΙ", "ΛΟΓΙΖΩ", "ΛΟΓΙΚΗ", "ΛΟΓΙΟΣ", "ΛΟΙΜΟΣ", "ΛΟΥΤΡΟ", "ΛΟΧΙΑΣ",
+      "ΛΥΓΙΖΩ", "ΛΥΓΜΟΣ", "ΛΥΚΕΙΟ", "ΛΥΣΙΜΟ", "ΛΥΧΝΙΑ", "ΛΥΧΝΟΣ", "ΛΩΡΙΔΑ",
+
+      // === Μ ===
+      "ΜΑΓΕΙΑ", "ΜΑΓΕΥΩ", "ΜΑΓΚΑΣ", "ΜΑΖΕΥΩ", "ΜΑΘΗΜΑ", "ΜΑΙΜΟΥ", "ΜΑΚΡΙΑ", "ΜΑΚΡΟΣ",
+      "ΜΑΚΡΥΣ", "ΜΑΛΑΜΑ", "ΜΑΛΛΟΝ", "ΜΑΛΩΜΑ", "ΜΑΛΩΝΩ", "ΜΑΝΙΚΙ", "ΜΑΝΤΗΣ", "ΜΑΝΤΡΑ",
+      "ΜΑΡΑΖΙ", "ΜΑΣΕΛΑ", "ΜΑΣΤΟΣ", "ΜΑΤΑΙΑ", "ΜΑΤΩΝΩ", "ΜΑΥΡΟΣ", "ΜΕΓΑΡΟ", "ΜΕΙΓΜΑ",
+      "ΜΕΙΩΝΩ", "ΜΕΙΩΣΗ", "ΜΕΛΑΝΙ", "ΜΕΛΕΤΗ", "ΜΕΛΕΤΩ", "ΜΕΛΛΟΝ", "ΜΕΡΙΔΑ", "ΜΕΤΑΞΙ",
+      "ΜΕΤΑΞΥ", "ΜΕΤΡΑΩ", "ΜΕΤΩΠΟ", "ΜΗΝΥΜΑ", "ΜΗΤΕΡΑ", "ΜΗΧΑΝΗ", "ΜΙΚΡΟΣ", "ΜΙΚΤΟΣ",
+      "ΜΙΜΗΣΗ", "ΜΙΣΘΟΣ", "ΜΟΙΑΖΩ", "ΜΟΛΥΒΙ", "ΜΟΛΥΝΩ", "ΜΟΝΑΔΑ", "ΜΟΝΑΧΑ", "ΜΟΣΧΟΣ",
+      "ΜΟΤΙΒΟ", "ΜΟΥΤΡΟ", "ΜΠΑΙΝΩ", "ΜΠΑΜΙΑ", "ΜΠΑΝΙΟ", "ΜΠΕΛΑΣ", "ΜΠΙΛΙΑ", "ΜΠΛΕΚΩ",
+      "ΜΠΟΓΙΑ", "ΜΠΟΥΤΙ", "ΜΠΡΙΚΙ", "ΜΥΡΙΖΩ",
+
+      // === Ν ===
+      "ΝΑΥΑΓΩ", "ΝΑΥΤΗΣ", "ΝΑΥΤΙΑ", "ΝΕΑΡΟΣ", "ΝΕΚΡΟΣ", "ΝΕΚΤΑΡ", "ΝΕΜΕΣΗ", "ΝΕΦΕΛΗ",
+      "ΝΕΦΡΟΣ", "ΝΗΣΙΔΑ", "ΝΙΦΑΔΑ", "ΝΟΗΤΟΣ", "ΝΟΘΕΙΑ", "ΝΟΘΕΥΩ", "ΝΟΙΑΖΩ", "ΝΟΜΑΔΑ",
+      "ΝΟΜΙΖΩ", "ΝΟΣΗΜΑ", "ΝΟΤΙΑΣ", "ΝΟΤΙΟΣ", "ΝΤΟΠΙΑ", "ΝΤΡΟΠΗ", "ΝΩΘΡΟΣ",
+
+      // === Ξ ===
+      "ΞΑΝΘΙΑ", "ΞΑΝΘΟΣ", "ΞΑΦΝΟΣ", "ΞΕΒΑΦΩ", "ΞΕΘΑΒΩ", "ΞΕΚΙΝΩ", "ΞΕΚΟΒΩ", "ΞΕΛΥΝΩ",
+      "ΞΕΜΕΝΩ", "ΞΕΝΙΖΩ", "ΞΕΠΕΤΩ", "ΞΕΡΝΑΩ", "ΞΕΣΠΑΩ", "ΞΕΧΝΑΩ", "ΞΕΧΥΝΩ", "ΞΗΛΩΜΑ",
+      "ΞΗΛΩΝΩ", "ΞΙΝΙΖΩ", "ΞΙΦΙΑΣ", "ΞΟΔΕΥΩ", "ΞΥΛΕΙΑ", "ΞΥΠΝΑΩ", "ΞΥΡΑΦΙ", "ΞΥΡΙΖΩ",
+
+      // === Ο ===
+      "ΟΓΔΟΟΣ", "ΟΔΗΓΙΑ", "ΟΔΗΓΟΣ", "ΟΙΚΕΙΑ", "ΟΙΚΗΜΑ", "ΟΙΚΗΣΗ", "ΟΙΚΙΖΩ", "ΟΙΚΤΟΣ",
+      "ΟΙΟΜΑΙ", "ΟΚΝΕΥΩ", "ΟΛΙΚΟΣ", "ΟΜΑΛΟΣ", "ΟΜΗΡΟΣ", "ΟΜΙΛΙΑ", "ΟΜΙΛΟΣ", "ΟΜΙΧΛΗ",
+      "ΟΜΟΙΟΣ", "ΟΝΕΙΡΟ", "ΟΞΙΝΟΣ", "ΟΞΥΝΣΗ", "ΟΞΥΤΗΣ", "ΟΠΑΔΟΣ", "ΟΠΛΙΖΩ", "ΟΡΑΤΟΣ",
+      "ΟΡΓΑΝΟ", "ΟΡΓΙΖΩ", "ΟΡΓΩΝΩ", "ΟΡΘΙΟΣ", "ΟΡΘΡΟΣ", "ΟΡΚΙΖΩ", "ΟΡΜΗΜΑ", "ΟΡΝΙΘΑ",
+      "ΟΡΟΦΟΣ", "ΟΡΥΣΣΩ", "ΟΡΦΑΝΟ", "ΟΣΜΩΣΗ", "ΟΣΠΡΙΟ", "ΟΦΕΙΛΗ", "ΟΦΕΙΛΩ", "ΟΦΕΛΟΣ",
+      "ΟΨΙΜΟΣ",
+
+      // === Π ===
+      "ΠΑΓΙΔΑ", "ΠΑΓΙΟΣ", "ΠΑΓΚΟΣ", "ΠΑΓΩΝΙ", "ΠΑΓΩΝΩ", "ΠΑΓΩΣΗ", "ΠΑΓΩΤΟ", "ΠΑΘΗΜΑ",
+      "ΠΑΘΗΣΗ", "ΠΑΙΔΙΑ", "ΠΑΙΡΝΩ", "ΠΑΛΑΜΗ", "ΠΑΛΑΤΙ", "ΠΑΛΕΤΑ", "ΠΑΛΕΥΩ", "ΠΑΛΙΟΣ",
+      "ΠΑΛΜΟΣ", "ΠΑΝΙΔΑ", "ΠΑΝΤΟΥ", "ΠΑΝΤΩΣ", "ΠΑΡΑΓΩ", "ΠΑΡΑΤΩ", "ΠΑΡΕΧΩ", "ΠΑΡΟΧΗ",
+      "ΠΑΤΑΤΑ", "ΠΑΤΗΜΑ", "ΠΑΤΗΣΗ", "ΠΑΤΡΩΝ", "ΠΑΤΩΜΑ", "ΠΕΔΙΛΟ", "ΠΕΖΙΚΟ", "ΠΕΙΝΑΩ",
+      "ΠΕΙΣΜΑ", "ΠΕΝΘΟΣ", "ΠΕΠΟΝΙ", "ΠΕΡΝΑΩ", "ΠΕΡΥΣΙ", "ΠΗΓΑΔΙ", "ΠΗΔΗΜΑ", "ΠΗΧΤΟΣ",
+      "ΠΙΘΑΡΙ", "ΠΙΚΡΙΑ", "ΠΙΚΡΟΣ", "ΠΙΝΕΛΟ", "ΠΙΠΕΡΙ", "ΠΙΣΙΝΑ", "ΠΙΣΤΟΣ", "ΠΛΑΓΙΑ",
+      "ΠΛΑΝΑΩ", "ΠΛΑΣΜΑ", "ΠΛΑΣΣΩ", "ΠΛΑΤΟΣ", "ΠΛΑΤΥΣ", "ΠΛΕΓΜΑ", "ΠΛΕΥΡΑ", "ΠΛΕΥΡΟ",
+      "ΠΛΗΘΟΣ", "ΠΛΗΡΗΣ", "ΠΛΗΡΩΣ", "ΠΛΗΤΤΩ", "ΠΝΕΥΜΑ", "ΠΟΔΑΡΙ", "ΠΟΙΗΜΑ", "ΠΟΙΗΣΗ",
+      "ΠΟΛΙΟΣ", "ΠΟΛΤΟΣ", "ΠΟΡΕΙΑ", "ΠΟΤΑΜΙ", "ΠΟΤΗΡΙ", "ΠΟΤΙΖΩ", "ΠΟΥΛΑΩ", "ΠΡΑΓΜΑ",
+      "ΠΡΑΤΤΩ", "ΠΡΕΠΟΝ", "ΠΡΟΑΓΩ", "ΠΡΟΕΧΩ", "ΠΡΟΝΟΩ", "ΠΡΩΤΙΑ", "ΠΡΩΤΟΣ", "ΠΤΩΧΟΣ",
+      "ΠΥΚΝΟΣ", "ΠΥΞΙΔΑ", "ΠΥΡΓΟΣ", "ΠΥΡΣΟΣ", "ΠΩΛΗΣΗ",
+
+      // === Ρ ===
+      "ΡΑΒΔΟΣ", "ΡΑΓΙΖΩ", "ΡΑΚΕΤΑ", "ΡΑΜΦΟΣ", "ΡΑΠΤΗΣ", "ΡΑΨΙΜΟ", "ΡΕΒΙΘΙ", "ΡΕΦΡΕΝ",
+      "ΡΗΤΙΝΗ", "ΡΙΓΑΝΗ", "ΡΙΓΩΝΩ", "ΡΙΖΙΚΟ", "ΡΙΖΩΝΩ", "ΡΟΔΕΛΑ", "ΡΟΔΙΖΩ", "ΡΟΠΑΛΟ",
+      "ΡΟΥΦΑΩ", "ΡΥΘΜΟΣ", "ΡΥΤΙΔΑ", "ΡΩΜΙΟΣ",
+
+      // === Σ ===
+      "ΣΑΒΑΝΟ", "ΣΑΓΟΝΙ", "ΣΑΚΑΚΙ", "ΣΑΛΑΜΙ", "ΣΑΛΑΤΑ", "ΣΑΛΕΥΩ", "ΣΑΛΟΝΙ", "ΣΑΛΤΣΑ",
+      "ΣΑΜΑΡΙ", "ΣΑΝΙΔΑ", "ΣΑΠΙΖΩ", "ΣΑΠΙΟΣ", "ΣΑΡΩΝΩ", "ΣΑΤΙΡΑ", "ΣΒΟΥΡΑ", "ΣΕΛΙΔΑ",
+      "ΣΕΛΙΝΟ", "ΣΕΜΝΟΣ", "ΣΕΠΤΟΣ", "ΣΗΚΩΝΩ", "ΣΗΜΑΔΙ", "ΣΗΜΑΙΑ", "ΣΗΜΕΙΟ", "ΣΗΜΕΡΑ",
+      "ΣΘΕΝΟΣ", "ΣΙΑΓΩΝ", "ΣΙΓΑΖΩ", "ΣΙΔΕΡΟ", "ΣΙΚΑΛΗ", "ΣΙΝΕΜΑ", "ΣΙΡΟΠΙ", "ΣΙΤΑΡΙ",
+      "ΣΙΤΙΖΩ", "ΣΙΤΙΣΗ", "ΣΚΑΙΟΣ", "ΣΚΑΜΝΙ", "ΣΚΑΦΟΣ", "ΣΚΕΛΟΣ", "ΣΚΕΥΟΣ", "ΣΚΙΑΖΩ",
+      "ΣΚΙΡΤΩ", "ΣΚΙΤΣΟ", "ΣΚΟΠΙΑ", "ΣΚΟΠΟΣ", "ΣΚΟΡΔΟ", "ΣΚΟΡΠΩ", "ΣΚΟΤΟΣ", "ΣΚΟΥΖΩ",
+      "ΣΚΟΥΦΙ", "ΣΚΥΛΟΣ", "ΣΚΩΛΗΞ", "ΣΚΩΜΜΑ", "ΣΜΑΛΤΟ", "ΣΜΗΝΟΣ", "ΣΟΔΕΙΑ", "ΣΟΦΙΤΑ",
+      "ΣΠΑΝΙΑ", "ΣΠΑΡΤΟ", "ΣΠΕΙΡΑ", "ΣΠΕΡΜΑ", "ΣΠΕΥΔΩ", "ΣΠΗΛΙΑ", "ΣΠΟΡΟΣ", "ΣΠΟΥΔΗ",
+      "ΣΤΑΔΙΟ", "ΣΤΑΛΙΑ", "ΣΤΑΜΝΑ", "ΣΤΑΧΤΗ", "ΣΤΑΧΥΣ", "ΣΤΕΛΝΩ", "ΣΤΕΜΜΑ", "ΣΤΕΝΟΣ",
+      "ΣΤΕΡΙΑ", "ΣΤΕΡΝΟ", "ΣΤΗΘΟΣ", "ΣΤΙΒΟΣ", "ΣΤΙΓΜΗ", "ΣΤΙΧΟΣ", "ΣΤΟΙΒΑ", "ΣΤΟΛΟΣ",
+      "ΣΤΟΜΙΟ", "ΣΤΟΡΓΗ", "ΣΤΟΧΟΣ", "ΣΤΡΕΦΩ", "ΣΤΡΙΒΩ", "ΣΤΡΟΦΗ", "ΣΤΡΩΜΑ", "ΣΤΡΩΝΩ",
+      "ΣΤΥΛΟΣ", "ΣΥΖΗΤΩ", "ΣΥΜΒΑΝ", "ΣΥΜΠΑΝ", "ΣΥΝΑΓΩ", "ΣΥΝΑΦΗ", "ΣΥΝΑΨΗ", "ΣΥΝΔΕΩ",
+      "ΣΥΝΕΣΗ", "ΣΥΝΟΛΟ", "ΣΥΝΟΡΟ", "ΣΥΝΟΨΗ", "ΣΥΡΡΕΩ", "ΣΥΧΝΟΣ", "ΣΦΑΓΜΑ", "ΣΦΑΙΡΑ",
+      "ΣΦΑΛΛΩ", "ΣΦΑΛΜΑ", "ΣΦΙΓΓΑ", "ΣΦΙΓΓΩ", "ΣΦΟΔΡΑ", "ΣΧΕΔΙΑ", "ΣΧΕΔΙΟ", "ΣΧΕΔΟΝ",
+      "ΣΧΙΣΜΗ", "ΣΧΟΙΝΙ", "ΣΧΟΛΙΟ", "ΣΩΠΑΖΩ", "ΣΩΡΕΥΩ", "ΣΩΣΤΟΣ", "ΣΩΦΡΩΝ",
+
+      // === Τ ===
+      "ΤΑΒΑΝΙ", "ΤΑΙΝΙΑ", "ΤΑΜΕΙΟ", "ΤΑΜΙΑΣ", "ΤΑΞΙΔΙ", "ΤΑΞΙΜΟ", "ΤΑΡΑΖΩ", "ΤΑΡΑΧΗ",
+      "ΤΑΥΡΟΣ", "ΤΑΦΡΟΣ", "ΤΕΙΧΟΣ", "ΤΕΛΕΤΗ", "ΤΗΓΑΝΙ", "ΤΙΓΡΗΣ", "ΤΙΜΙΟΣ", "ΤΙΜΟΝΙ",
+      "ΤΙΜΩΡΩ", "ΤΙΝΑΖΩ", "ΤΙΤΛΟΣ", "ΤΟΙΧΟΣ", "ΤΟΛΜΑΩ", "ΤΟΜΑΡΙ", "ΤΟΜΕΑΣ", "ΤΟΝΙΖΩ",
+      "ΤΟΝΩΝΩ", "ΤΟΝΩΣΗ", "ΤΟΞΕΥΩ", "ΤΟΥΒΛΟ", "ΤΟΥΝΕΛ", "ΤΟΥΡΤΑ", "ΤΡΑΒΑΩ", "ΤΡΑΓΟΣ",
+      "ΤΡΑΥΜΑ", "ΤΡΙΠΛΑ", "ΤΡΙΤΟΣ", "ΤΡΟΜΟΣ", "ΤΡΟΠΟΣ", "ΤΡΟΧΙΑ", "ΤΡΟΧΟΣ", "ΤΡΥΓΑΩ",
+      "ΤΡΥΓΟΣ", "ΤΡΥΠΑΩ", "ΤΣΑΝΤΑ", "ΤΣΙΡΚΟ", "ΤΥΛΙΓΩ", "ΤΥΜΒΟΣ", "ΤΥΠΩΜΑ", "ΤΥΠΩΝΩ",
+      "ΤΥΦΛΟΣ",
+
+      // === Υ ===
+      "ΥΒΡΙΖΩ", "ΥΛΑΚΤΩ", "ΥΜΝΕΥΩ", "ΥΠΑΡΞΗ", "ΥΠΑΡΧΩ", "ΥΠΝΩΝΩ", "ΥΠΟΨΙΑ", "ΥΠΤΙΟΣ",
+      "ΥΦΑΙΝΩ", "ΥΦΑΝΣΗ", "ΥΦΑΣΜΑ", "ΥΨΗΛΟΣ",
+
+      // === Φ ===
+      "ΦΑΓΗΤΟ", "ΦΑΓΩΜΑ", "ΦΑΝΑΡΙ", "ΦΑΝΕΛΑ", "ΦΑΣΟΛΙ", "ΦΑΥΛΟΣ", "ΦΕΓΓΟΣ", "ΦΕΛΛΟΣ",
+      "ΦΘΕΙΡΩ", "ΦΘΗΝΟΣ", "ΦΘΟΝΟΣ", "ΦΙΛΕΤΟ", "ΦΙΛΗΜΑ", "ΦΙΛΙΟΣ", "ΦΙΛΤΡΟ", "ΦΙΜΩΝΩ",
+      "ΦΙΜΩΣΗ", "ΦΛΟΙΟΣ", "ΦΛΟΥΔΑ", "ΦΛΥΑΡΩ", "ΦΟΒΕΡΑ", "ΦΟΒΙΖΩ", "ΦΟΙΝΙΞ", "ΦΟΝΕΥΩ",
+      "ΦΟΝΙΑΣ", "ΦΟΡΑΔΑ", "ΦΟΡΕΑΣ", "ΦΟΡΕΜΑ", "ΦΟΡΤΙΟ", "ΦΟΥΣΚΑ", "ΦΟΥΣΤΑ", "ΦΡΑΓΜΑ",
+      "ΦΡΟΥΡΑ", "ΦΡΟΥΡΩ", "ΦΡΟΥΤΟ", "ΦΤΗΝΟΣ", "ΦΤΩΧΟΣ", "ΦΥΛΑΓΩ", "ΦΥΛΑΚΗ", "ΦΥΛΑΞΗ",
+      "ΦΥΟΜΑΙ", "ΦΥΣΗΜΑ", "ΦΥΣΙΚΗ", "ΦΥΤΕΜΑ", "ΦΥΤΕΥΩ", "ΦΩΝΑΖΩ", "ΦΩΤΙΖΩ", "ΦΩΤΙΣΗ",
+
+      // === Χ ===
+      "ΧΑΖΕΥΩ", "ΧΑΛΑΖΙ", "ΧΑΛΑΚΙ", "ΧΑΛΑΣΗ", "ΧΑΛΒΑΣ", "ΧΑΛΙΚΙ", "ΧΑΛΚΟΣ", "ΧΑΝΔΡΑ",
+      "ΧΑΡΑΖΩ", "ΧΑΡΑΚΙ", "ΧΑΡΙΖΩ", "ΧΑΡΤΗΣ", "ΧΑΣΙΜΟ", "ΧΕΙΛΟΣ", "ΧΕΛΩΝΑ", "ΧΕΡΣΟΣ",
+      "ΧΗΜΕΙΑ", "ΧΗΜΕΙΟ", "ΧΗΡΕΙΑ", "ΧΗΡΕΥΩ", "ΧΙΛΙΑΣ", "ΧΛΩΜΟΣ", "ΧΛΩΡΙΟ", "ΧΛΩΡΟΣ",
+      "ΧΟΡΕΙΑ", "ΧΟΡΕΥΩ", "ΧΟΡΗΓΩ", "ΧΟΥΦΤΑ", "ΧΡΕΩΝΩ", "ΧΡΙΣΜΑ", "ΧΡΟΝΙΑ", "ΧΡΟΝΟΣ",
+      "ΧΡΥΣΟΣ", "ΧΡΩΜΙΟ", "ΧΡΩΣΤΩ", "ΧΤΥΠΑΩ", "ΧΤΥΠΟΣ", "ΧΩΝΕΥΩ", "ΧΩΝΕΨΗ", "ΧΩΡΑΦΙ",
+      "ΧΩΡΙΖΩ", "ΧΩΡΙΚΟ", "ΧΩΡΙΚΗ",
+
+      // === Ψ ===
+      "ΨΑΛΙΔΙ", "ΨΑΛΜΟΣ", "ΨΑΛΤΗΣ", "ΨΑΡΕΥΩ", "ΨΕΓΑΔΙ", "ΨΕΚΑΖΩ", "ΨΕΥΔΗΣ", "ΨΕΥΔΟΣ",
+      "ΨΕΥΣΜΑ", "ΨΕΥΤΗΣ", "ΨΗΛΩΝΩ", "ΨΗΦΙΔΑ", "ΨΗΦΙΖΩ", "ΨΙΛΙΖΩ", "ΨΙΧΑΛΑ", "ΨΥΓΕΙΟ",
+      "ΨΥΛΛΟΣ", "ΨΥΧΡΟΣ", "ΨΩΝΙΖΩ",
+
+      // === Ω ===
+      "ΩΟΘΗΚΗ", "ΩΡΑΙΟΣ", "ΩΡΑΡΙΟ", "ΩΡΙΜΟΣ", "ΩΣΜΩΣΗ"
+    ];
+
+    // Extra common 6-letter stems & forms (e.g., adjectives in -ικος/-ικη/-ικο, nouns, verbs)
+    const EXTRA_COMMON_6 = [
+      "ΧΩΡΙΚΟ", "ΧΩΡΙΚΗ", "ΛΟΓΙΚΟ", "ΛΟΓΙΚΗ", "ΦΥΣΙΚΟ", "ΦΥΣΙΚΗ", "ΗΘΙΚΟΣ", "ΗΘΙΚΟΙ",
+      "ΑΣΤΙΚΟ", "ΑΣΤΙΚΗ", "ΔΥΤΙΚΟ", "ΔΥΤΙΚΗ", "ΝΟΜΙΚΟ", "ΝΟΜΙΚΗ", "ΟΔΙΚΟΣ", "ΟΔΙΚΗ",
+      "ΕΙΔΙΚΟ", "ΕΙΔΙΚΗ", "ΓΕΝΙΚΟ", "ΓΕΝΙΚΗ", "ΤΕΛΙΚΟ", "ΤΕΛΙΚΗ", "ΑΡΧΙΚΟ", "ΑΡΧΙΚΗ",
+      "ΜΟΝΙΜΟ", "ΜΟΝΙΜΗ", "ΟΨΙΜΟΙ", "ΩΡΙΜΟΙ", "ΕΤΟΙΜΟ", "ΕΤΟΙΜΗ", "ΟΜΟΡΦΟ", "ΟΜΟΡΦΗ",
+      "ΑΣΧΗΜΟ", "ΑΣΧΗΜΗ", "ΚΑΘΑΡΟ", "ΚΑΘΑΡΗ", "ΣΚΛΗΡΟ", "ΣΚΛΗΡΗ", "ΜΑΛΑΚΟ", "ΜΑΛΑΚΗ",
+      "ΔΥΝΑΤΟ", "ΔΥΝΑΤΗ", "ΠΛΑΤΙΑ", "ΒΑΘΙΕΣ", "ΥΨΗΛΟΙ", "ΧΑΜΗΛΟ", "ΧΑΜΗΛΗ", "ΦΤΩΧΟΙ",
+      "ΠΛΟΥΣΙ", "ΓΕΜΑΤΟ", "ΓΕΜΑΤΗ", "ΑΔΕΙΑΝ", "ΣΙΓΑΝΟ", "ΣΙΓΑΝΗ", "ΓΡΗΓΟΡ", "ΗΡΕΜΟΙ",
+      "ΖΩΝΤΑΝ", "ΞΕΚΑΘΑ", "ΣΚΟΤΕΙ", "ΦΩΤΕΙΝ", "ΠΡΑΣΙΝ", "ΚΟΚΚΙΝ", "ΚΙΤΡΙΝ", "ΓΑΛΑΖΙ",
+      " ΑΣΠΡΟ", "ΑΣΠΡΗ", "ΜΑΥΡΗ", "ΜΑΥΡΟ", "ΓΛΥΚΙΑ", "ΓΛΥΚΟ", "ΠΙΚΡΗ", "ΠΙΚΡΟ"
+    ];
+
+    // Programmatically normalize, deduplicate, and strictly enforce 6-character length
+    function buildCleanWordList(rawArray, targetLen) {
+      const seen = new Set();
+      const result = [];
+      for (const raw of rawArray) {
+        const clean = normalizeGreek(raw).replace(/[^Α-Ω]/g, '');
+        if (clean.length === targetLen && !seen.has(clean)) {
+          seen.add(clean);
+          result.push(clean);
+        }
+      }
+      return result;
+    }
+
+    // Generate regular morphological variations (e.g. -ΟΣ -> -Η / -Ο, -ΑΩ -> -ΑΣ / -ΑΕΙ, etc.)
+    // so the offline dictionary automatically covers thousands of valid 6-letter words like ΧΩΡΙΚΟ / ΧΩΡΙΚΗ
+    function expandGreekDictionaryForms(baseWords) {
+      const expanded = new Set(baseWords);
+      for (const w of baseWords) {
+        // Adjectives & nouns in -ΟΣ (e.g., ΚΑΛΟΣ, ΛΕΥΚΟΣ, ΗΘΙΚΟΣ -> ΗΘΙΚΟΙ)
+        if (w.endsWith('ΟΣ')) {
+          const stem = w.slice(0, 4);
+          expanded.add(stem + 'ΟΙ');
+          expanded.add(stem + 'ΟΥ');
+          expanded.add(stem + 'ΩΝ');
+          expanded.add(stem + 'ΕΣ');
+        }
+        // Feminine in -ΙΑ / -Η -> plural -ΕΣ, genitive -ΑΣ/-ΗΣ
+        if (w.endsWith('ΙΑ') || w.endsWith('ΡΑ') || w.endsWith('ΝΑ') || w.endsWith('ΛΑ')) {
+          const stem5 = w.slice(0, 5);
+          expanded.add(stem5 + 'Σ');
+          expanded.add(w.slice(0, 4) + 'ΕΣ');
+        }
+        // Neuter in -Ι (e.g., ΚΑΡΑΒΙ -> ΚΑΡΑΒΙ, plural/genitive if 6 letters)
+        // Neuter in -ΜΑ (e.g., ΑΓΑΛΜΑ, ΒΛΕΜΜΑ, ΠΡΑΓΜΑ)
+        // Verbs in -ΑΩ (e.g., ΑΓΑΠΑΩ -> ΑΓΑΠΑΣ, ΑΓΑΠΑΝ)
+        if (w.endsWith('ΑΩ')) {
+          const stem = w.slice(0, 4);
+          expanded.add(stem + 'ΑΣ');
+          expanded.add(stem + 'ΑΝ');
+          expanded.add(stem + 'ΑΜΕ');
+        }
+        // Verbs in -ΖΩ / -ΝΩ / -ΤΩ / -ΚΩ / -ΧΩ / -ΦΩ / -ΒΩ / -ΓΩ
+        if (w.endsWith('Ω') && !w.endsWith('ΑΩ')) {
+          const stem5 = w.slice(0, 5);
+          expanded.add(stem5 + 'Ε'); // Imperative or past
+          expanded.add(stem5 + 'Η'); // Subjunctive / Noun
+          expanded.add(stem5 + 'Ο'); // Neuter / Adjective form (e.g. ΧΩΡΙΚΟ)
+        }
+      }
+
+      // Also include all valid 6-letter words from EXTRA_COMMON_6
+      for (const raw of EXTRA_COMMON_6) {
+        const clean = normalizeGreek(raw).replace(/[^Α-Ω]/g, '');
+        if (clean.length === 6) expanded.add(clean);
+      }
+
+      return expanded;
+    }
+
+    const WORDS_6 = buildCleanWordList(RAW_LEMMAS_6, 6);
+    const VALID_LEMMAS_SET = expandGreekDictionaryForms(WORDS_6);
+    const INVALID_LEMMA_CACHE = new Set();
+
+    /********************************************************************
+     * 3. GAME STATE & CONFIGURATION (STRICTLY 6 LETTERS, 7 TRIES)
+     ********************************************************************/
+    let state = {
+      wordLength: 6,          // Strictly 6 letters
+      maxTries: 7,            // 7 tries for 6-letter words
+      targetWord: '',
+      guesses: [],            // Array of { word: string, evaluations: ['correct'|'present'|'absent'] }
+      currentRowLetters: [],  // Array of length 6
+      cursorCol: 0,           // Active column index in current row
+      lockedHints: {},        // { colIndex: letter } revealed by Hint button
+      hintsRemaining: 2,
+      gameStatus: 'IN_PROGRESS', // 'IN_PROGRESS' | 'WON' | 'LOST'
+      showEnSublabels: true,
+      soundEnabled: true,
+      letterStatuses: {},     // { 'Α': 'correct' | 'present' | 'absent' }
+      isAnimating: false
+    };
+
+    /********************************************************************
+     * 3b. SOFT SATISFYING SOUND ENGINE (Web Audio API — zero external files)
+     ********************************************************************/
+    let audioCtx = null;
+
+    function getAudioCtx() {
+      if (!state.soundEnabled) return null;
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          audioCtx = new AudioContextClass();
+        }
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+      }
+      return audioCtx;
+    }
+
+    // Soft, warm, wooden/marimba-like click when typing a letter
+    function playSoftKeySound(pitchOffset = 0) {
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      try {
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sine';
+        const baseFreq = 310 + pitchOffset * 14 + (Math.random() * 10 - 5);
+        osc.frequency.setValueAtTime(baseFreq, now);
+        osc.frequency.exponentialRampToValueAtTime(140, now + 0.045);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.09, now + 0.006);
+        gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.05);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.055);
+      } catch (e) {}
+    }
+
+    // Subtle lower thud for backspace
+    function playBackspaceSound() {
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      try {
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(210, now);
+        osc.frequency.exponentialRampToValueAtTime(95, now + 0.05);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.07, now + 0.005);
+        gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.055);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.06);
+      } catch (e) {}
+    }
+
+    // Gentle chime when a tile flips
+    function playTileFlipSound(evalType, index) {
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      try {
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sine';
+        const freqs = {
+          correct: 520 + index * 32,
+          present: 410 + index * 20,
+          absent: 250 + index * 10
+        };
+        const freq = freqs[evalType] || 280;
+        osc.frequency.setValueAtTime(freq, now);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.08, now + 0.08);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(evalType === 'correct' ? 0.085 : 0.05, now + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.095);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.1);
+      } catch (e) {}
+    }
+
+    // Relaxing arpeggio chord on Win
+    function playWinSound() {
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+      notes.forEach((freq, idx) => {
+        try {
+          const now = ctx.currentTime + idx * 0.085;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now);
+
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(0.09, now + 0.015);
+          gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.38);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.4);
+        } catch (e) {}
+      });
+    }
+
+    function toggleSound() {
+      state.soundEnabled = !state.soundEnabled;
+      const onIcon = document.getElementById('soundOnIcon');
+      const offIcon = document.getElementById('soundOffIcon');
+      const btn = document.getElementById('soundToggleBtn');
+      if (onIcon && offIcon && btn) {
+        onIcon.classList.toggle('hidden', !state.soundEnabled);
+        offIcon.classList.toggle('hidden', state.soundEnabled);
+        btn.classList.toggle('text-emerald-400', state.soundEnabled);
+        btn.classList.toggle('text-zinc-400', !state.soundEnabled);
+      }
+      if (state.soundEnabled) playSoftKeySound(2);
+    }
+
+    const STATS_KEY = 'lexouli_6_stats_v1';
+
+    function loadStats() {
+      try {
+        const raw = localStorage.getItem(STATS_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (e) {
+        console.warn('Could not read stats from localStorage:', e);
+      }
+      return {
+        played: 0,
+        wins: 0,
+        currentStreak: 0,
+        maxStreak: 0,
+        distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 }
+      };
+    }
+
+    function saveStats(stats) {
+      try {
+        localStorage.setItem(STATS_KEY, JSON.stringify(stats));
+      } catch (e) {
+        console.warn('Could not save stats to localStorage:', e);
+      }
+    }
+
+    /********************************************************************
+     * 4. INITIALIZATION & NEW GAME
+     ********************************************************************/
+    const KEYBOARD_LAYOUT = [
+      ['Ε', 'Ρ', 'Τ', 'Υ', 'Θ', 'Ι', 'Ο', 'Π'],
+      ['Α', 'Σ', 'Δ', 'Φ', 'Γ', 'Η', 'Ξ', 'Κ', 'Λ'],
+      ['ENTER', 'Ζ', 'Χ', 'Ψ', 'Ω', 'Β', 'Ν', 'Μ', 'BACKSPACE']
+    ];
+
+    function initApp() {
+      renderKeyboard();
+      startNewGame();
+      setupKeyboardListeners();
+    }
+
+    function startNewGame() {
+      if (state.isAnimating) return;
+
+      const randomIndex = Math.floor(Math.random() * WORDS_6.length);
+      state.targetWord = WORDS_6[randomIndex];
+      state.guesses = [];
+      state.currentRowLetters = new Array(state.wordLength).fill('');
+      state.cursorCol = 0;
+      state.lockedHints = {};
+      state.hintsRemaining = 2;
+      state.gameStatus = 'IN_PROGRESS';
+      state.letterStatuses = {};
+
+      document.getElementById('gameOverBanner').classList.add('hidden');
+      updateHintButtonUI();
+      updateTriesStatusUI();
+      renderBoard();
+      updateKeyboardColors();
+    }
+
+    /********************************************************************
+     * 5. BOARD & KEYBOARD RENDERING
+     ********************************************************************/
+    function renderBoard() {
+      const board = document.getElementById('boardGrid');
+      board.innerHTML = '';
+
+      const cols = state.wordLength; // 6
+      const rows = state.maxTries;   // 7
+      board.style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`;
+
+      // Responsive tile sizing tailored for Android & iPhone viewports without vertical overflow
+      const tileSizeClass = 'w-[12.5vw] max-w-[48px] h-[5.6dvh] max-h-[48px] sm:w-13 sm:max-w-none sm:h-13 sm:max-h-none md:w-14 md:h-14 text-lg sm:text-2xl';
+
+      for (let r = 0; r < rows; r++) {
+        const rowEl = document.createElement('div');
+        rowEl.id = `row-${r}`;
+        rowEl.className = 'grid gap-1 sm:gap-2';
+        rowEl.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+
+        const isCurrentRow = r === state.guesses.length && state.gameStatus === 'IN_PROGRESS';
+        const submittedGuess = state.guesses[r];
+
+        for (let c = 0; c < cols; c++) {
+          const tile = document.createElement('div');
+          tile.id = `tile-${r}-${c}`;
+          tile.className = `tile ${tileSizeClass}`;
+
+          if (submittedGuess) {
+            tile.textContent = submittedGuess.word[c];
+            tile.classList.add(submittedGuess.evaluations[c]);
+          } else if (isCurrentRow) {
+            const letter = state.currentRowLetters[c] || '';
+            tile.textContent = letter;
+            if (letter) tile.classList.add('filled');
+            if (state.lockedHints[c]) tile.classList.add('hint-locked');
+            if (c === state.cursorCol) tile.classList.add('active-cursor');
+
+            // Allow clicking any tile in the active row to move the cursor directly there
+            tile.style.cursor = 'pointer';
+            tile.onclick = () => {
+              if (state.gameStatus === 'IN_PROGRESS' && !state.isAnimating) {
+                state.cursorCol = c;
+                refreshActiveRowUI();
+              }
+            };
+          }
+
+          rowEl.appendChild(tile);
+        }
+        board.appendChild(rowEl);
+      }
+    }
+
+    function refreshActiveRowUI() {
+      const r = state.guesses.length;
+      if (r >= state.maxTries) return;
+
+      for (let c = 0; c < state.wordLength; c++) {
+        const tile = document.getElementById(`tile-${r}-${c}`);
+        if (!tile) continue;
+
+        const letter = state.currentRowLetters[c] || '';
+        tile.textContent = letter;
+
+        tile.classList.toggle('filled', Boolean(letter));
+        tile.classList.toggle('hint-locked', Boolean(state.lockedHints[c]));
+        tile.classList.toggle('active-cursor', state.gameStatus === 'IN_PROGRESS' && c === state.cursorCol);
+      }
+    }
+
+    function renderKeyboard() {
+      const container = document.getElementById('keyboardContainer');
+      container.innerHTML = '';
+
+      KEYBOARD_LAYOUT.forEach((rowKeys) => {
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'flex justify-center gap-1 sm:gap-1.5 w-full';
+
+        rowKeys.forEach((key) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.dataset.key = key;
+
+          if (key === 'ENTER') {
+            btn.className = 'kbd-key px-1.5 sm:px-3.5 h-11 sm:h-13 text-[10px] sm:text-xs font-extrabold tracking-tight flex-[1.45] bg-emerald-700/80 hover:bg-emerald-600';
+            btn.innerHTML = '<span>ENTER</span>';
+            btn.onclick = () => submitCurrentGuess();
+          } else if (key === 'BACKSPACE') {
+            btn.className = 'kbd-key px-1.5 sm:px-3.5 h-11 sm:h-13 text-xs flex-[1.35]';
+            btn.innerHTML = `
+              <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12l6.414 6.414a2 2 0 001.414.586H19a2 2 0 002-2V7a2 2 0 00-2-2h-8.172a2 2 0 00-1.414.586L3 12z" />
+              </svg>
+            `;
+            btn.onclick = () => handleBackspace();
+          } else {
+            btn.className = 'kbd-key flex-1 h-11 sm:h-13 text-sm sm:text-base';
+            const enHint = GR_TO_EN_LABEL[key] || '';
+            btn.innerHTML = `
+              <span class="leading-none">${key}</span>
+              <span class="en-sublabel text-[8px] sm:text-[9px] font-mono opacity-60 leading-none mt-0.5 ${state.showEnSublabels ? '' : 'hidden'}">${enHint}</span>
+            `;
+            btn.onclick = (ev) => {
+              triggerKeyRipple(btn, ev);
+              handleLetterInput(key);
+            };
+          }
+
+          rowDiv.appendChild(btn);
+        });
+
+        container.appendChild(rowDiv);
+      });
+    }
+
+    // Visual ripple & pulse on key press (both mouse tap and physical keyboard)
+    function triggerKeyRipple(btn, mouseEvent = null) {
+      if (!btn) return;
+      btn.classList.remove('key-pressed');
+      void btn.offsetWidth;
+      btn.classList.add('key-pressed');
+      setTimeout(() => btn.classList.remove('key-pressed'), 150);
+
+      const ripple = document.createElement('span');
+      ripple.className = 'key-ripple-effect';
+      if (mouseEvent && mouseEvent.clientX) {
+        const rect = btn.getBoundingClientRect();
+        ripple.style.left = `${mouseEvent.clientX - rect.left - 12}px`;
+        ripple.style.top = `${mouseEvent.clientY - rect.top - 12}px`;
+      } else {
+        ripple.style.left = 'calc(50% - 12px)';
+        ripple.style.top = 'calc(50% - 12px)';
+      }
+      btn.appendChild(ripple);
+      setTimeout(() => ripple.remove(), 430);
+    }
+
+    function pulseKeyboardKey(keyName) {
+      const btn = document.querySelector(`#keyboardContainer .kbd-key[data-key="${keyName}"]`);
+      if (btn) triggerKeyRipple(btn);
+    }
+
+    function updateKeyboardColors() {
+      const buttons = document.querySelectorAll('#keyboardContainer .kbd-key');
+      buttons.forEach((btn) => {
+        const key = btn.dataset.key;
+        if (!VALID_GREEK_LETTERS.has(key)) return;
+
+        btn.classList.remove('correct', 'present', 'absent');
+        const status = state.letterStatuses[key];
+        if (status) {
+          btn.classList.add(status);
+        }
+      });
+    }
+
+    /********************************************************************
+     * 6. INPUT HANDLING (GREEK + ENGLISH QWERTY PHYSICAL KEYBOARD)
+     ********************************************************************/
+    function setupKeyboardListeners() {
+      window.addEventListener('keydown', (e) => {
+        // Ignore shortcuts with Ctrl, Alt, Meta
+        if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+        // Close any open modal on Escape
+        if (e.key === 'Escape') {
+          closeModal('statsModal');
+          closeModal('helpModal');
+          return;
+        }
+
+        if (state.gameStatus !== 'IN_PROGRESS' || state.isAnimating) return;
+
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          submitCurrentGuess();
+          return;
+        }
+
+        if (e.key === 'Backspace' || e.key === 'Delete') {
+          e.preventDefault();
+          handleBackspace();
+          return;
+        }
+
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          state.cursorCol = Math.max(0, state.cursorCol - 1);
+          refreshActiveRowUI();
+          return;
+        }
+
+        if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          state.cursorCol = Math.min(state.wordLength - 1, state.cursorCol + 1);
+          refreshActiveRowUI();
+          return;
+        }
+
+        // Check if single character key (either Greek or English letter)
+        if (e.key.length === 1) {
+          const upper = normalizeGreek(e.key);
+
+          // Direct Greek character
+          if (VALID_GREEK_LETTERS.has(upper)) {
+            e.preventDefault();
+            handleLetterInput(upper);
+            return;
+          }
+
+          // English character mapped to Greek layout
+          const enUpper = e.key.toUpperCase();
+          if (EN_TO_GR_MAP[enUpper]) {
+            e.preventDefault();
+            handleLetterInput(EN_TO_GR_MAP[enUpper]);
+          }
+        }
+      });
+    }
+
+    function handleLetterInput(greekLetter) {
+      if (state.gameStatus !== 'IN_PROGRESS' || state.isAnimating) return;
+
+      const targetCol = state.cursorCol;
+
+      // Place letter at current cursor column
+      state.currentRowLetters[targetCol] = greekLetter;
+
+      // Advance cursor to next empty slot (or next slot if all filled)
+      let nextCol = state.cursorCol;
+      for (let offset = 1; offset < state.wordLength; offset++) {
+        const candidate = state.cursorCol + offset;
+        if (candidate < state.wordLength && !state.currentRowLetters[candidate]) {
+          nextCol = candidate;
+          break;
+        }
+      }
+      if (nextCol === state.cursorCol && state.cursorCol < state.wordLength - 1) {
+        nextCol = state.cursorCol + 1;
+      }
+      state.cursorCol = nextCol;
+
+      refreshActiveRowUI();
+      pulseKeyboardKey(greekLetter);
+      playSoftKeySound(targetCol);
+
+      // Spawn subtle relaxing sparkle around the typed tile
+      const r = state.guesses.length;
+      const tileEl = document.getElementById(`tile-${r}-${targetCol}`);
+      if (tileEl) {
+        // Re-trigger popIn animation smoothly
+        tileEl.classList.remove('filled');
+        void tileEl.offsetWidth;
+        tileEl.classList.add('filled');
+        spawnTileSparkles(tileEl, 4, '#60a5fa');
+      }
+    }
+
+    function handleBackspace() {
+      if (state.gameStatus !== 'IN_PROGRESS' || state.isAnimating) return;
+      pulseKeyboardKey('BACKSPACE');
+      playBackspaceSound();
+
+      // If current cursor position has a letter (and isn't a locked hint), clear it
+      if (state.currentRowLetters[state.cursorCol] && !state.lockedHints[state.cursorCol]) {
+        state.currentRowLetters[state.cursorCol] = '';
+        refreshActiveRowUI();
+        return;
+      }
+
+      // Otherwise move left to find a removable slot
+      let prevCol = state.cursorCol - 1;
+      while (prevCol >= 0 && state.lockedHints[prevCol]) {
+        prevCol--;
+      }
+
+      if (prevCol >= 0) {
+        state.cursorCol = prevCol;
+        state.currentRowLetters[prevCol] = '';
+      } else if (state.cursorCol > 0) {
+        state.cursorCol--;
+      }
+
+      refreshActiveRowUI();
+    }
+
+    /********************************************************************
+     * 7. DICTIONARY VALIDATION (~10,000 6-LETTER GREEK WORDS) & EVALUATION
+     ********************************************************************/
+    // Checks local dictionary first (0ms), then verifies via Greek Wiktionary API (el.wiktionary.org)
+    // why ΧΩΡΙΚΟ failed previously: Wiktionary lists "χωρικό" on the lemma page "χωρικός" (or as neuter/accusative),
+    // and previously we rejected any page whose title didn't strictly equal the search string or had "Κλιτικοί τύποι".
+    // Now we accept any authentic Modern Greek 6-letter word or lemma entry found on Greek Wiktionary!
+    async function verifyGreekLemma(word) {
+      if (word.length !== state.wordLength) return false;
+      for (const ch of word) {
+        if (!VALID_GREEK_LETTERS.has(ch)) return false;
+      }
+
+      // 1. Instant hit in our local Greek dictionary set
+      if (VALID_LEMMAS_SET.has(word)) return true;
+      if (INVALID_LEMMA_CACHE.has(word)) return false;
+
+      // 2. Online check via Greek Wiktionary (el.wiktionary.org) covering ~10,000+ 6-letter Greek words
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2200);
+        const url = `https://el.wiktionary.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(word.toLowerCase())}&gsrlimit=12&prop=categories|extracts&exintro=1&explaintext=1&cllimit=50&format=json&origin=*`;
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const data = await response.json();
+          const pages = data?.query?.pages ? Object.values(data.query.pages) : [];
+
+          for (const page of pages) {
+            const normTitle = normalizeGreek(page.title || '').replace(/[^Α-Ω]/g, '');
+            const normExtract = normalizeGreek(page.extract || '');
+            const cats = (page.categories || []).map((c) => c.title || '');
+
+            const isGreekEntry = cats.some((cat) =>
+              cat.includes('νέα ελληνικά') ||
+              cat.includes('Νέα ελληνικά') ||
+              cat.includes('ελληνικά')
+            );
+
+            // Accept if:
+            // (a) The page title itself is this exact 6-letter word in Greek Wiktionary, OR
+            // (b) It is a Greek lemma page (like "χωρικός" / "χωρικό") whose intro or title contains this exact 6-letter word
+            const wordRegex = new RegExp(`(^|[^Α-Ω])${word}([^Α-Ω]|$)`);
+            if (normTitle === word || (isGreekEntry && wordRegex.test(normExtract))) {
+              VALID_LEMMAS_SET.add(word);
+              return true;
+            }
+          }
+        }
+      } catch (err) {
+        // Offline or timeout fallback
+      }
+
+      INVALID_LEMMA_CACHE.add(word);
+      return false;
+    }
+
+    function evaluateGuess(guess, target) {
+      const len = target.length;
+      const result = new Array(len).fill('absent');
+      const remainingCounts = {};
+
+      // Pass 1: Identify exact matches ('correct') and count remaining target letters
+      for (let i = 0; i < len; i++) {
+        if (guess[i] === target[i]) {
+          result[i] = 'correct';
+        } else {
+          const tChar = target[i];
+          remainingCounts[tChar] = (remainingCounts[tChar] || 0) + 1;
+        }
+      }
+
+      // Pass 2: Identify misplaced letters ('present')
+      for (let i = 0; i < len; i++) {
+        if (result[i] === 'correct') continue;
+        const gChar = guess[i];
+        if (remainingCounts[gChar] > 0) {
+          result[i] = 'present';
+          remainingCounts[gChar]--;
+        }
+      }
+
+      return result;
+    }
+
+    async function submitCurrentGuess() {
+      if (state.gameStatus !== 'IN_PROGRESS' || state.isAnimating) return;
+
+      const rowIndex = state.guesses.length;
+      const guessWord = state.currentRowLetters.join('');
+
+      if (guessWord.length < state.wordLength || state.currentRowLetters.includes('')) {
+        shakeRow(rowIndex);
+        showToast('Η λέξη πρέπει να έχει 6 γράμματα!', 'warning');
+        return;
+      }
+
+      state.isAnimating = true;
+      const isValidLemma = await verifyGreekLemma(guessWord);
+
+      if (!isValidLemma) {
+        state.isAnimating = false;
+        shakeRow(rowIndex);
+        showToast('Η λέξη δεν βρέθηκε στο ελληνικό λεξικό!', 'error');
+        return;
+      }
+
+      pulseKeyboardKey('ENTER');
+      const rowEl = document.getElementById(`row-${rowIndex}`);
+      if (rowEl) {
+        rowEl.classList.remove('row-submit-wave');
+        void rowEl.offsetWidth;
+        rowEl.classList.add('row-submit-wave');
+      }
+
+      const evaluations = evaluateGuess(guessWord, state.targetWord);
+
+      // Remove active cursor ring before flipping
+      for (let c = 0; c < state.wordLength; c++) {
+        const tile = document.getElementById(`tile-${rowIndex}-${c}`);
+        if (tile) tile.classList.remove('active-cursor');
+      }
+
+      // Sequential flip animation across the 6 tiles with soft particle feedback
+      const flipDelay = 115;
+      for (let c = 0; c < state.wordLength; c++) {
+        setTimeout(() => {
+          const tile = document.getElementById(`tile-${rowIndex}-${c}`);
+          if (!tile) return;
+          tile.classList.add('flip');
+          setTimeout(() => {
+            tile.classList.add(evaluations[c]);
+            playTileFlipSound(evaluations[c], c);
+            if (evaluations[c] === 'correct') {
+              spawnTileSparkles(tile, 7, '#4ade80');
+            } else if (evaluations[c] === 'present') {
+              spawnTileSparkles(tile, 4, '#facc15');
+            }
+          }, 240);
+        }, c * flipDelay);
+      }
+
+      // After all tiles finish flipping
+      setTimeout(() => {
+        // Save guess
+        state.guesses.push({ word: guessWord, evaluations });
+
+        // Update keyboard letter priority: correct > present > absent
+        const priority = { correct: 3, present: 2, absent: 1 };
+        for (let c = 0; c < state.wordLength; c++) {
+          const letter = guessWord[c];
+          const evalState = evaluations[c];
+          const currentBest = state.letterStatuses[letter];
+          if (!currentBest || priority[evalState] > priority[currentBest]) {
+            state.letterStatuses[letter] = evalState;
+          }
+        }
+        updateKeyboardColors();
+
+        // Check Win / Loss
+        if (guessWord === state.targetWord) {
+          handleGameWin(rowIndex);
+        } else if (state.guesses.length >= state.maxTries) {
+          handleGameLoss();
+        } else {
+          // Prepare next row and carry over any locked hints
+          state.currentRowLetters = new Array(state.wordLength).fill('');
+          for (const [colStr, hintChar] of Object.entries(state.lockedHints)) {
+            state.currentRowLetters[Number(colStr)] = hintChar;
+          }
+          // Set cursor to first non-locked column
+          state.cursorCol = 0;
+          for (let c = 0; c < state.wordLength; c++) {
+            if (!state.lockedHints[c]) {
+              state.cursorCol = c;
+              break;
+            }
+          }
+          state.isAnimating = false;
+          updateTriesStatusUI();
+          renderBoard();
+        }
+      }, state.wordLength * flipDelay + 350);
+    }
+
+    function handleGameWin(winningRowIndex) {
+      state.gameStatus = 'WON';
+      state.isAnimating = false;
+      playWinSound();
+
+      // Bounce tiles & trigger celebratory confetti
+      for (let c = 0; c < state.wordLength; c++) {
+        const tile = document.getElementById(`tile-${winningRowIndex}-${c}`);
+        if (tile) {
+          setTimeout(() => {
+            tile.classList.add('win-bounce');
+            spawnTileSparkles(tile, 10, '#34d399');
+          }, c * 75);
+        }
+      }
+      launchWinCelebration();
+
+      const hintsUsed = 2 - state.hintsRemaining;
+      const hintsNote = hintsUsed === 0 ? 'χωρίς υποδείξεις!' : `με ${hintsUsed} ${hintsUsed === 1 ? 'υπόδειξη' : 'υποδείξεις'}`;
+
+      const praiseMessages = [
+        `ΑΠΙΣΤΕΥΤΟ! Το βρήκες με την πρώτη (${hintsNote})`,
+        `ΦΑΝΤΑΣΤΙΚΟ! Εξαιρετική μαντεψιά (${hintsNote})`,
+        `ΜΠΡΑΒΟ! Πολύ δυνατή σκέψη (${hintsNote})`,
+        `ΣΥΓΧΑΡΗΤΗΡΙΑ! Εξαιρετικό λεξιλόγιο (${hintsNote})`,
+        `ΩΡΑΙΟΣ! Βρήκες τη λέξη (${hintsNote})`,
+        `ΠΟΛΥ ΚΑΛΑ! Τα κατάφερες (${hintsNote})`,
+        `ΣΤΟ ΤΣΑΚ! Δύσκολη λέξη αλλά νίκησες (${hintsNote})`
+      ];
+      const msg = praiseMessages[Math.min(state.guesses.length - 1, praiseMessages.length - 1)];
+      showToast(msg, 'success');
+
+      // Record statistics
+      const stats = loadStats();
+      stats.played++;
+      stats.wins++;
+      stats.currentStreak++;
+      if (stats.currentStreak > stats.maxStreak) {
+        stats.maxStreak = stats.currentStreak;
+      }
+      const tryCount = state.guesses.length;
+      stats.distribution[tryCount] = (stats.distribution[tryCount] || 0) + 1;
+      saveStats(stats);
+
+      showGameOverBanner(true);
+      updateTriesStatusUI();
+    }
+
+    function handleGameLoss() {
+      state.gameStatus = 'LOST';
+      state.isAnimating = false;
+
+      // Soft cascading sink animation on the last row + gentle falling embers
+      const lastRow = state.guesses.length - 1;
+      for (let c = 0; c < state.wordLength; c++) {
+        const tile = document.getElementById(`tile-${lastRow}-${c}`);
+        if (tile) {
+          setTimeout(() => tile.classList.add('loss-wave'), c * 60);
+        }
+      }
+      launchLossEffect();
+
+      const stats = loadStats();
+      stats.played++;
+      stats.currentStreak = 0;
+      saveStats(stats);
+
+      const hintsUsed = 2 - state.hintsRemaining;
+      showToast(`Η λέξη ήταν: ${state.targetWord} (Υποδείξεις: ${hintsUsed}/2)`, 'error');
+      showGameOverBanner(false);
+      updateTriesStatusUI();
+    }
+
+    function showGameOverBanner(won) {
+      const banner = document.getElementById('gameOverBanner');
+      const title = document.getElementById('gameOverTitle');
+      const wordBadge = document.getElementById('revealedWordBadge');
+      const hintsBadge = document.getElementById('hintsUsedBadge');
+
+      const hintsUsed = 2 - state.hintsRemaining;
+      wordBadge.textContent = state.targetWord;
+      if (hintsBadge) {
+        hintsBadge.textContent = hintsUsed === 0
+          ? 'Χωρίς υποδείξεις (0/2)'
+          : `Υποδείξεις: ${hintsUsed}/2`;
+      }
+
+      if (won) {
+        title.textContent = `ΝΙΚΗ ΣΤΗΝ ${state.guesses.length}η ΠΡΟΣΠΑΘΕΙΑ!`;
+        title.className = 'text-sm font-extrabold uppercase tracking-wide text-emerald-400';
+      } else {
+        title.textContent = 'ΤΕΛΟΣ ΠΡΟΣΠΑΘΕΙΩΝ!';
+        title.className = 'text-sm font-extrabold uppercase tracking-wide text-rose-400';
+      }
+
+      banner.classList.remove('hidden');
+    }
+
+    /********************************************************************
+     * 8. HINT SYSTEM ("Υπόδειξη")
+     ********************************************************************/
+    function useHint() {
+      if (state.gameStatus !== 'IN_PROGRESS' || state.isAnimating) return;
+      if (state.hintsRemaining <= 0) {
+        showToast('Δεν έχεις άλλες υποδείξεις σε αυτόν τον γύρο!', 'warning');
+        return;
+      }
+
+      // Find columns not yet solved as 'correct' in previous guesses and not already hinted
+      const solvedCols = new Set();
+      state.guesses.forEach((g) => {
+        g.evaluations.forEach((ev, idx) => {
+          if (ev === 'correct') solvedCols.add(idx);
+        });
+      });
+
+      const candidateCols = [];
+      for (let c = 0; c < state.wordLength; c++) {
+        if (!solvedCols.has(c) && !state.lockedHints[c]) {
+          candidateCols.push(c);
+        }
+      }
+
+      if (candidateCols.length === 0) {
+        showToast('Όλες οι θέσεις έχουν ήδη αποκαλυφθεί!', 'info');
+        return;
+      }
+
+      // Pick a random unrevealed column
+      const chosenCol = candidateCols[Math.floor(Math.random() * candidateCols.length)];
+      const correctLetter = state.targetWord[chosenCol];
+
+      state.lockedHints[chosenCol] = correctLetter;
+      state.currentRowLetters[chosenCol] = correctLetter;
+      state.hintsRemaining--;
+
+      updateHintButtonUI();
+      refreshActiveRowUI();
+      const activeRow = state.guesses.length;
+      const hintedTile = document.getElementById(`tile-${activeRow}-${chosenCol}`);
+      if (hintedTile) spawnTileSparkles(hintedTile, 12, '#38bdf8');
+      showToast(`Υπόδειξη: Το ${chosenCol + 1}ο γράμμα είναι «${correctLetter}»`, 'info');
+    }
+
+    function updateHintButtonUI() {
+      const counter = document.getElementById('hintCounter');
+      const btn = document.getElementById('hintBtn');
+      if (counter) counter.textContent = state.hintsRemaining;
+      if (btn) {
+        btn.classList.toggle('opacity-50', state.hintsRemaining <= 0);
+      }
+    }
+
+    function updateTriesStatusUI() {
+      const el = document.getElementById('triesStatusText');
+      if (!el) return;
+      if (state.gameStatus === 'IN_PROGRESS') {
+        el.textContent = `Προσπάθεια ${state.guesses.length + 1} από ${state.maxTries}`;
+      } else if (state.gameStatus === 'WON') {
+        el.textContent = `Βρέθηκε σε ${state.guesses.length}/${state.maxTries} προσπάθειες!`;
+      } else {
+        el.textContent = `Ολοκληρώθηκε (${state.maxTries}/${state.maxTries})`;
+      }
+    }
+
+    /********************************************************************
+     * 9. UI HELPERS: TOASTS, MODALS, SHARE, DOWNLOAD .HTML
+     ********************************************************************/
+    function shakeRow(rowIndex) {
+      const rowEl = document.getElementById(`row-${rowIndex}`);
+      if (!rowEl) return;
+      rowEl.classList.remove('row-shake');
+      void rowEl.offsetWidth; // trigger reflow
+      rowEl.classList.add('row-shake');
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+
+      const styles = {
+        info: 'bg-zinc-800 border-zinc-600 text-white',
+        success: 'bg-emerald-700 border-emerald-500 text-white',
+        warning: 'bg-amber-600 border-amber-400 text-white',
+        error: 'bg-rose-700 border-rose-500 text-white'
+      };
+
+      toast.className = `px-4 py-2 rounded-xl border shadow-lg text-xs sm:text-sm font-bold tracking-wide transition-all duration-300 transform translate-y-0 opacity-100 ${styles[type] || styles.info}`;
+      toast.textContent = message;
+
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('opacity-0', '-translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 2400);
+    }
+
+    function toggleEnSublabels(checked) {
+      state.showEnSublabels = checked;
+      document.querySelectorAll('.en-sublabel').forEach((el) => {
+        el.classList.toggle('hidden', !checked);
+      });
+    }
+
+    function openModal(id) {
+      if (id === 'statsModal') {
+        renderStatsModal();
+      }
+      const modal = document.getElementById(id);
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+    }
+
+    function closeModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    }
+
+    function renderStatsModal() {
+      const stats = loadStats();
+      document.getElementById('statPlayed').textContent = stats.played;
+      const winPct = stats.played > 0 ? Math.round((stats.wins / stats.played) * 100) : 0;
+      document.getElementById('statWinPct').textContent = `${winPct}%`;
+      document.getElementById('statCurrentStreak').textContent = stats.currentStreak;
+      document.getElementById('statMaxStreak').textContent = stats.maxStreak;
+
+      const distContainer = document.getElementById('guessDistributionContainer');
+      distContainer.innerHTML = '';
+
+      const maxVal = Math.max(1, ...Object.values(stats.distribution));
+      for (let i = 1; i <= 7; i++) {
+        const count = stats.distribution[i] || 0;
+        const widthPct = Math.max(7, Math.round((count / maxVal) * 100));
+        const isCurrentWinTry = state.gameStatus === 'WON' && state.guesses.length === i;
+
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-2';
+        row.innerHTML = `
+          <span class="w-4 text-right font-bold text-zinc-400">${i}</span>
+          <div class="flex-1 bg-zinc-800 rounded overflow-hidden h-5">
+            <div style="width: ${widthPct}%" class="h-full ${isCurrentWinTry ? 'bg-emerald-600' : 'bg-zinc-600'} flex items-center justify-end px-2 font-bold text-[11px] text-white transition-all">
+              ${count}
+            </div>
+          </div>
+        `;
+        distContainer.appendChild(row);
+      }
+
+      // Show hints used in current/last round inside the stats modal
+      const lastRoundBox = document.getElementById('statsLastRoundInfo');
+      const hintsText = document.getElementById('statsHintsUsedText');
+      if (lastRoundBox && hintsText) {
+        const hintsUsed = 2 - state.hintsRemaining;
+        lastRoundBox.classList.remove('hidden');
+        hintsText.textContent = hintsUsed === 0
+          ? '0 υποδείξεις (Καθαρή προσπάθεια!)'
+          : `${hintsUsed} από 2 υποδείξεις`;
+      }
+    }
+
+    function resetStats() {
+      localStorage.removeItem(STATS_KEY);
+      renderStatsModal();
+      showToast('Τα στατιστικά μηδενίστηκαν.', 'info');
+    }
+
+    /********************************************************************
+     * 10. RELAXING & SATISFYING CANVAS PARTICLE ANIMATIONS
+     *     (Typing sparkles, Win celebration, Loss gentle rain)
+     ********************************************************************/
+    const fxCanvas = document.getElementById('fxCanvas');
+    const fxCtx = fxCanvas.getContext('2d');
+    let fxParticles = [];
+    let fxAnimId = null;
+
+    function resizeFxCanvas() {
+      fxCanvas.width = window.innerWidth;
+      fxCanvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeFxCanvas);
+    resizeFxCanvas();
+
+    function spawnTileSparkles(tileEl, count = 6, color = '#60a5fa') {
+      if (!tileEl) return;
+      const rect = tileEl.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+
+      for (let i = 0; i < count; i++) {
+        const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
+        const speed = 1.2 + Math.random() * 2.2;
+        fxParticles.push({
+          x: cx + (Math.random() - 0.5) * (rect.width * 0.6),
+          y: cy + (Math.random() - 0.5) * (rect.height * 0.6),
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 0.6,
+          gravity: 0.04,
+          size: 2.5 + Math.random() * 2.5,
+          alpha: 0.9,
+          decay: 0.022 + Math.random() * 0.015,
+          color,
+          shape: 'circle'
+        });
+      }
+      startFxLoop();
+    }
+
+    function launchWinCelebration() {
+      const palette = ['#34d399', '#10b981', '#fbbf24', '#38bdf8', '#a78bfa', '#f472b6'];
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+
+      for (let i = 0; i < 85; i++) {
+        const fromLeft = i % 2 === 0;
+        const startX = fromLeft ? w * 0.2 + Math.random() * (w * 0.25) : w * 0.55 + Math.random() * (w * 0.25);
+        const startY = h * 0.55 + (Math.random() - 0.5) * 80;
+        const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.15;
+        const speed = 4 + Math.random() * 7.5;
+
+        fxParticles.push({
+          x: startX,
+          y: startY,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          gravity: 0.12,
+          size: 4 + Math.random() * 4.5,
+          alpha: 1,
+          decay: 0.008 + Math.random() * 0.007,
+          color: palette[Math.floor(Math.random() * palette.length)],
+          rotation: Math.random() * Math.PI * 2,
+          vRot: (Math.random() - 0.5) * 0.14,
+          shape: Math.random() > 0.35 ? 'rect' : 'circle'
+        });
+      }
+      startFxLoop();
+    }
+
+    function launchLossEffect() {
+      const palette = ['#fb7185', '#94a3b8', '#64748b', '#f43f5e'];
+      const w = window.innerWidth;
+
+      for (let i = 0; i < 40; i++) {
+        fxParticles.push({
+          x: w * 0.2 + Math.random() * (w * 0.6),
+          y: 80 + Math.random() * 140,
+          vx: (Math.random() - 0.5) * 0.9,
+          vy: 1.2 + Math.random() * 2.0,
+          gravity: 0.03,
+          size: 3 + Math.random() * 3,
+          alpha: 0.75,
+          decay: 0.011 + Math.random() * 0.008,
+          color: palette[Math.floor(Math.random() * palette.length)],
+          shape: 'circle'
+        });
+      }
+      startFxLoop();
+    }
+
+    function startFxLoop() {
+      if (fxAnimId) return;
+      function step() {
+        fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+
+        for (let i = fxParticles.length - 1; i >= 0; i--) {
+          const p = fxParticles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += p.gravity || 0;
+          p.alpha -= p.decay;
+          if (p.rotation !== undefined) p.rotation += p.vRot || 0;
+
+          if (p.alpha <= 0) {
+            fxParticles.splice(i, 1);
+            continue;
+          }
+
+          fxCtx.save();
+          fxCtx.globalAlpha = Math.max(0, p.alpha);
+          fxCtx.fillStyle = p.color;
+          fxCtx.translate(p.x, p.y);
+          if (p.rotation) fxCtx.rotate(p.rotation);
+
+          if (p.shape === 'rect') {
+            fxCtx.fillRect(-p.size / 2, -p.size / 2, p.size * 1.4, p.size * 0.85);
+          } else {
+            fxCtx.beginPath();
+            fxCtx.arc(0, 0, p.size, 0, Math.PI * 2);
+            fxCtx.fill();
+          }
+          fxCtx.restore();
+        }
+
+        if (fxParticles.length > 0) {
+          fxAnimId = requestAnimationFrame(step);
+        } else {
+          fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+          fxAnimId = null;
+        }
+      }
+      fxAnimId = requestAnimationFrame(step);
+    }
+
+    window.onload = initApp;
+  </script>
+</body>
+</html>
